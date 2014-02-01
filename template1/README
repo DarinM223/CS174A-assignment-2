@@ -1,0 +1,18 @@
+Name: Darin Minamoto
+UID: 704-140-102
+
+1) Ubuntu 12.04, vim and make using custom Makefile (I changed some header files meant for Mac to Linux so it will not compile on Mac computers.
+anim.cpp worked in Visual Studio though when I replaced the default anim.cpp with it and kept the other files the same)
+2) In anim.cpp, changed display() function, created multiple functions to draw the ground
+and the various parts of the bee and flower/tree.
+
+3) 
+   a) 5/5
+   b) 1/1
+   c) 2/2
+   d) 2/2
+   e) 4/4 
+   f) 5/5
+   g) 3/3
+   h) 2/2
+   i) In general it looks qualitatively and visually similar to the example video.
