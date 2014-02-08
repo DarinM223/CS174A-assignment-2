@@ -35,6 +35,8 @@
 #include "Angel/Angel.h"
 
 #include <queue>
+#include <vector>
+using std::vector;
 using std::queue;
 #ifdef __APPLE__
 #define glutInitContextVersion(a,b)
@@ -110,15 +112,15 @@ class MatrixStack {
 
 
 
+
 MatrixStack  mvstack;
 mat4         model_view;
 GLint        uModelView, uProjection, uView;
 GLint        uAmbient, uDiffuse, uSpecular, uLightPos, uShininess;
 GLint        uTex, uEnableTex;
 
-typedef void (*sceneCall)(void);
-queue<double> sceneTimes;
-queue<sceneCall> scenes;
+class drawableObject;
+typedef void (*sceneCall)(drawableObject* obj);
 
 
 // The eye point and look-at point.
@@ -132,8 +134,15 @@ double TIME = 0.0 ;
 class drawableObject {
         protected:
                 mat4 myMV;
+                double myTime;
+                int animIndex;
         public:
-                virtual void draw() = 0;
+                virtual void draw() {
+                        if (animIndex != 0) {
+                                myTime += .02;
+                        }
+                }
+                virtual void anim(int animIndex) { this->animIndex = animIndex; }
                 void move(double x, double y, double z) {
                         myMV *= Translate(x, y, z);
                 }
@@ -144,6 +153,8 @@ class drawableObject {
                 }
                 drawableObject() {
                         myMV = mat4(1.0f);
+                        myTime = 0;
+                        animIndex = 0;
                 }
 };
 
@@ -203,7 +214,7 @@ class Bee : public drawableObject {
                         set_colour(.658, .658, .658);
                                 mvstack.push(model_view); //draw first wing
                                         model_view *= Translate(0, .5, -.5);
-                                        model_view *= RotateX(50*sin(TIME));
+                                        model_view *= RotateX(50*sin(myTime));
                                         model_view *= Translate(0, 0.025, -1);
                                         model_view *= Scale(1.0, 0.05, 2);
                                         drawCube();
@@ -211,7 +222,7 @@ class Bee : public drawableObject {
                 
                                 mvstack.push(model_view); //draw second wing
                                         model_view *= Translate(0, .5, .5);
-                                        model_view *= RotateX(-50*sin(TIME));
+                                        model_view *= RotateX(-50*sin(myTime));
                                         model_view *= Translate(0, 0.025, 1);
                                         model_view *= Scale(1.0, 0.05, 2);
                                         drawCube();
@@ -222,7 +233,7 @@ class Bee : public drawableObject {
                         if (side == 0) { //if left leg
                                 mvstack.push(model_view); //draw thigh
                                         model_view *= Translate(0, -.5, -.5);
-                                        model_view *= RotateX(-abs(20 * sin(.5 * TIME)));
+                                        model_view *= RotateX(-abs(20 * sin(.5 * myTime)));
                                         mvstack.push(model_view);
                                                 model_view *= Translate(0, -.3, -.075);
                                                 model_view *= Scale(.15, .6, .15);
@@ -231,7 +242,7 @@ class Bee : public drawableObject {
                 
                                         model_view *= Translate(0, -.6, 0); //move down to draw foot
                                         mvstack.push(model_view); //draw foot
-                                                model_view *= RotateX(-abs(20 * sin(.5 * TIME)));
+                                                model_view *= RotateX(-abs(20 * sin(.5 * myTime)));
                                                 model_view *= Translate(0, -.3, -.075);
                                                 model_view *= Scale(.15, .6, .15);
                                                 drawCube();
@@ -240,7 +251,7 @@ class Bee : public drawableObject {
                         } else if (side == 1) { //if right leg
                                 mvstack.push(model_view); //draw thigh
                                         model_view *= Translate(0, -.5, .5);
-                                        model_view *= RotateX(abs(20 * sin(.5 * TIME)));
+                                        model_view *= RotateX(abs(20 * sin(.5 * myTime)));
                                         mvstack.push(model_view);
                                                 model_view *= Translate(0, -.3, .075);
                                                 model_view *= Scale(.15, .6, .15);
@@ -249,7 +260,7 @@ class Bee : public drawableObject {
                 
                                         model_view *= Translate(0, -.6, 0); //move down to draw foot
                                         mvstack.push(model_view); //draw foot
-                                                model_view *= RotateX(abs(20 * sin(.5 * TIME)));
+                                                model_view *= RotateX(abs(20 * sin(.5 * myTime)));
                                                 model_view *= Translate(0, -.3, .075);
                                                 model_view *= Scale(.15, .6, .15);
                                                 drawCube();
@@ -278,12 +289,80 @@ class Bee : public drawableObject {
                 }
         public:
                 virtual void draw() {
+                        drawableObject::draw();
                         mvstack.push(model_view);
                         model_view *= myMV;
                         drawBee();
                         model_view = mvstack.pop();
                 }
                 Bee() : drawableObject() {
+                }
+};
+
+class SceneObject {
+        private:
+                queue<sceneCall> scenes;
+                queue<double> sceneTimes;
+                drawableObject* object;
+                sceneCall currScene;
+                double startTime, endTime;
+        public:
+                void addScene(sceneCall scene, double sceneTime) {
+                        this->scenes.push(scene);
+                        this->sceneTimes.push(sceneTime);
+                }
+                SceneObject(drawableObject* obj) {
+                        this->object = obj;
+                        startTime = 0;
+                        endTime = 0;
+                        currScene = NULL;
+                }
+                void playCurrScene() {
+                        if (currScene == NULL) {
+                                if (scenes.size() != 0) {
+                                    currScene = scenes.front();
+                                    endTime = startTime+sceneTimes.front();
+                                    scenes.pop();
+                                    sceneTimes.pop();
+                                    if (endTime != startTime) {
+                                            currScene(object);
+                                    }
+                                } else {
+                                        //do nothing
+                                }
+                        } else if (TIME > startTime && TIME < endTime) {
+                                currScene(object);
+                        } else if (TIME >= endTime) {
+                                startTime = endTime;
+                                currScene = NULL;
+                                object->anim(0);
+                        } 
+                        object->draw();
+                } 
+};
+class SceneManager {
+        private:
+                vector<SceneObject*> sceneObjs;
+        public:
+                void drawScene() {
+                        for (int i = 0; i < sceneObjs.size(); i++) {
+                                sceneObjs[i]->playCurrScene();
+                        }
+                }                
+                int addObject(drawableObject* obj) {
+                        SceneObject *newObj = new SceneObject(obj);
+                        sceneObjs.push_back(newObj);
+                        return sceneObjs.size() - 1;
+                }
+                void addSceneToObject(int objIndex, sceneCall func, double sceneTimeLength) {
+                       sceneObjs[objIndex]->addScene(func, sceneTimeLength); 
+                }
+                SceneManager() {
+                }
+                ~SceneManager() {
+                        for (int i = 0; i < sceneObjs.size(); i++) {
+                                delete sceneObjs[i];
+                        }
                 }
 };
 
@@ -294,8 +373,8 @@ void drawWithTexture(void (*f)(void), GLuint tex) {
         glUniform1i(uEnableTex, 0);
 }
 
-void do360();
-void moveForward();
+void do360(drawableObject *obj);
+void moveForward(drawableObject *obj);
 
 /////////////////////////////////////////////////////
 //    PROC: drawCylinder()
@@ -426,6 +505,7 @@ void myKey(unsigned char key, int x, int y)
 
 }
 
+SceneManager manager;
 /*********************************************************
     PROC: myinit()
     DOES: performs most of the OpenGL intialization
@@ -515,10 +595,11 @@ void myinit(void)
     Ball_Init(Arcball);
     Ball_Place(Arcball,qOne,0.75);
 
-    scenes.push(moveForward);
-    sceneTimes.push(.5);
-    scenes.push(do360);
-    sceneTimes.push(2);
+    drawableObject *bee = new Bee();
+    bee->move(5, 0, 0);
+    int beeIndex = manager.addObject(bee);
+    manager.addSceneToObject(beeIndex, moveForward, 1);
+    manager.addSceneToObject(beeIndex, do360, 2);
 }
 
 /*********************************************************
@@ -537,10 +618,6 @@ void set_colour(float r, float g, float b)
     glUniform4f(uSpecular, specular*r, specular*g, specular*b, 1.0f);
 }
 
-double startTime = 0;
-double endTime = 0;
-sceneCall currScene = NULL;
-Bee bee;
 
 /*********************************************************
 **********************************************************
@@ -589,40 +666,7 @@ void display(void)
 
     // Draw Something
     
-    if (currScene == NULL) {
-            if (scenes.size() != 0) {
-                currScene = scenes.front();
-                endTime = startTime+sceneTimes.front();
-                scenes.pop();
-                sceneTimes.pop();
-                if (endTime != startTime) {
-                        currScene();
-                }
-            } else {
-                    //do nothing
-            }
-    } else if (TIME > startTime && TIME < endTime) {
-            currScene();
-    } else if (TIME >= endTime) {
-            startTime = endTime;
-            currScene = NULL;
-    } 
-    bee.draw();
-
-    //set_colour(0.8f, 0.8f, 0.8f);
-    //drawWithTexture(drawSphere, texture_earth);
-
-    //model_view *= Translate(3.0f, 0.0f, 0.0f);
-
-    //model_view *= Scale(3.0f, 3.0f, 3.0f);
-    //if (TIME < 1.67)
-    //        eye.z -= TIME/2;
-    //else {
-    //        eye.z += TIME/2;
-    //}
-    //
-
-    //drawWithTexture(drawCube, texture_cube);
+    manager.drawScene();
 
     glutSwapBuffers();
     if(Recording == 1)
@@ -774,9 +818,11 @@ int main(int argc, char** argv)
 
 
 
-void do360() {
-        bee.rotate(0, 10, 0);        
+void do360(drawableObject *obj) {
+        //obj->anim(1);
+        obj->rotate(0, 10, 0);        
 }
-void moveForward() {
-        bee.move(0, 0, 1);
+void moveForward(drawableObject *obj) {
+        obj->anim(1);
+        obj->move(0, 0, .5);
 }
