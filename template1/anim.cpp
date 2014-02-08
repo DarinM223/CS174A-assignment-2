@@ -142,7 +142,10 @@ class drawableObject {
                                 myTime += .02;
                         }
                 }
-                virtual void anim(int animIndex) { this->animIndex = animIndex; }
+                virtual void anim(int animIndex) { 
+                        this->animIndex = animIndex; 
+                }
+                virtual void resetAnim() { myTime = 0; }
                 void move(double x, double y, double z) {
                         myMV *= Translate(x, y, z);
                 }
@@ -160,6 +163,107 @@ class drawableObject {
 
 void drawSphere();
 void drawCube();
+
+class Flower : public drawableObject {
+        private:
+                void drawFlowerHead() {
+                        mvstack.push(model_view);
+                        set_colour(1.0, 0.0, 0.0);
+                        model_view *= RotateZ(12*sin(myTime));
+                        model_view *= Translate(0, 9.9, 0);
+                        model_view *= Scale(1.5, 1.5, 1.5);
+                        drawSphere();
+                        model_view = mvstack.pop();
+                }
+                void drawFlowerStem() {
+                        mvstack.push(model_view);
+                                set_colour(0.5, 0.35, 0.05);
+                                //draw pieces of the stem
+                                //#1
+                                mvstack.push(model_view);
+                                        model_view *= RotateZ(1.25*sin(myTime));
+                                        model_view *= Translate(0, 1.0, 0);
+                                        model_view *= RotateZ(1.25*sin(myTime));
+                                        model_view *= Scale(.15, 1, .15);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                                //#2
+                                mvstack.push(model_view);
+                                        model_view *= RotateZ(2.5*sin(myTime));
+                                        model_view *= Translate(0, 2, 0);
+                                        model_view *= RotateZ(2.5*sin(myTime));
+                                        model_view *= Scale(.15, 1, .15);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                                //#3
+                                mvstack.push(model_view);
+                                        model_view *= RotateZ(3.75*sin(myTime));
+                                        model_view *= Translate(0, 3, 0);
+                                        model_view *= RotateZ(3.75*sin(myTime));
+                                        model_view *= Scale(.15, 1, .15);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                                //#4
+                                mvstack.push(model_view);
+                                        model_view *= RotateZ(5*sin(myTime));
+                                        model_view *= Translate(0, 4, 0);
+                                        model_view *= RotateZ(5*sin(myTime));
+                                        model_view *= Scale(.15, 1, .15);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                                //#5
+                                mvstack.push(model_view);
+                                        model_view *= RotateZ(6.25*sin(myTime));
+                                        model_view *= Translate(0, 5, 0);
+                                        model_view *= RotateZ(6.25*sin(myTime));
+                                        model_view *= Scale(.15, 1, .15);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                                //#6
+                                mvstack.push(model_view);
+                                        model_view *= RotateZ(7.5*sin(myTime));
+                                        model_view *= Translate(0, 6, 0);
+                                        model_view *= RotateZ(7.5*sin(myTime));
+                                        model_view *= Scale(.15, 1, .15);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                                //#7
+                                mvstack.push(model_view);
+                                        model_view *= RotateZ(8.75*sin(myTime));
+                                        model_view *= Translate(0, 7, 0);
+                                        model_view *= RotateZ(8.75*sin(myTime));
+                                        model_view *= Scale(.15, 1, .15);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                                //#8
+                                mvstack.push(model_view);
+                                        model_view *= RotateZ(10*sin(myTime));
+                                        model_view *= Translate(0, 8, 0);
+                                        model_view *= RotateZ(10*sin(myTime));
+                                        model_view *= Scale(.15, 1, .15);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                        model_view = mvstack.pop();
+                }
+                
+                void drawFlower() {
+                        //draw the flower parts
+                        mvstack.push(model_view);
+                        drawFlowerHead();
+                        drawFlowerStem();
+                        model_view = mvstack.pop();
+                }
+        public:
+                virtual void draw() {
+                        drawableObject::draw();
+                        mvstack.push(model_view);
+                        model_view *= myMV;
+                        drawFlower();
+                        model_view = mvstack.pop();
+                }
+                Flower() : drawableObject() {
+                }
+};
 
 class Bee : public drawableObject {
         private:
@@ -335,7 +439,6 @@ class SceneObject {
                         } else if (TIME >= endTime) {
                                 startTime = endTime;
                                 currScene = NULL;
-                                object->anim(0);
                         } 
                         object->draw();
                 } 
@@ -374,6 +477,7 @@ void drawWithTexture(void (*f)(void), GLuint tex) {
 }
 
 void do360(drawableObject *obj);
+void doAnimate(drawableObject *obj);
 void moveForward(drawableObject *obj);
 
 /////////////////////////////////////////////////////
@@ -596,10 +700,16 @@ void myinit(void)
     Ball_Place(Arcball,qOne,0.75);
 
     drawableObject *bee = new Bee();
+    drawableObject *flower = new Flower();
     bee->move(5, 0, 0);
+    flower->move(0, -4, 0);
     int beeIndex = manager.addObject(bee);
+    int flowerIndex = manager.addObject(flower);
     manager.addSceneToObject(beeIndex, moveForward, 1);
     manager.addSceneToObject(beeIndex, do360, 2);
+    manager.addSceneToObject(beeIndex, doAnimate, 10);
+    manager.addSceneToObject(flowerIndex, moveForward, 1);
+    manager.addSceneToObject(flowerIndex, doAnimate, 12);
 }
 
 /*********************************************************
@@ -819,10 +929,14 @@ int main(int argc, char** argv)
 
 
 void do360(drawableObject *obj) {
-        //obj->anim(1);
+        obj->anim(0);
+        obj->resetAnim();
         obj->rotate(0, 10, 0);        
 }
 void moveForward(drawableObject *obj) {
         obj->anim(1);
         obj->move(0, 0, .5);
+}
+void doAnimate(drawableObject *obj) {
+        obj->anim(1);
 }
