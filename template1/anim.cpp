@@ -36,8 +36,10 @@
 
 #include <queue>
 #include <vector>
+#include <map>
 using std::vector;
 using std::queue;
+using std::map;
 #ifdef __APPLE__
 #define glutInitContextVersion(a,b)
 #define glutInitContextProfile(a)
@@ -121,6 +123,7 @@ GLint        uTex, uEnableTex;
 
 class drawableObject;
 typedef void (*sceneCall)(drawableObject* obj);
+typedef void (*cameraCall)(void);
 
 
 // The eye point and look-at point.
@@ -135,17 +138,53 @@ class drawableObject {
         protected:
                 mat4 myMV;
                 double myTime;
-                int animIndex;
+                //int animIndex;
+                bool isAnimated;
+                map<int, bool> animIndexMap;
+                map<int, double> animTimeMap;
         public:
                 virtual void draw() {
-                        if (animIndex != 0) {
-                                myTime += .02;
-                        }
+                                //myTime += .02;
+                                for (map<int, double>::iterator iter = animTimeMap.begin(); iter != animTimeMap.end(); iter++) {
+                                        if (isCurrAnimation(iter->first))
+                                                iter->second += .02;
+                                }
                 }
                 virtual void anim(int animIndex) { 
-                        this->animIndex = animIndex; 
+                        if (!isCurrAnimation(animIndex)) {
+                                isAnimated = true;
+                                animIndexMap[animIndex] = true;
+                                animTimeMap[animIndex] = 0;
+                        }
                 }
-                virtual void resetAnim() { myTime = 0; }
+                virtual bool isCurrAnimation(int animIndex) {
+                        return (animIndexMap.find(animIndex) != animIndexMap.end() && animIndexMap[animIndex]);
+                }
+                virtual void stopAnim(int animIndex) {
+                        if (isCurrAnimation(animIndex)) {
+                                animIndexMap[animIndex] = false;
+                        }
+                }
+                virtual double getTime(int animIndex) { 
+                        if (animTimeMap.find(animIndex) == animTimeMap.end()) return 0;
+                        return animTimeMap[animIndex]; 
+                }
+                virtual void stopAllAnim() {
+                        isAnimated = false;
+                        for (map<int,bool>::iterator iter = animIndexMap.begin(); iter != animIndexMap.end(); iter++) {
+                                iter->second = false; //set all values to false
+                        }
+                }
+                virtual void resetAllAnim() { 
+                        for (map<int,double>::iterator iter = animTimeMap.begin(); iter != animTimeMap.end(); iter++) {
+                                iter->second = 0;
+                        }
+                }
+                virtual void resetAnim(int animIndex) {
+                        if (animTimeMap.find(animIndex) != animTimeMap.end()) {
+                                animTimeMap[animIndex] = 0;
+                        }
+                } 
                 void move(double x, double y, double z) {
                         myMV *= Translate(x, y, z);
                 }
@@ -157,12 +196,13 @@ class drawableObject {
                 drawableObject() {
                         myMV = mat4(1.0f);
                         myTime = 0;
-                        animIndex = 0;
+                        isAnimated = false;
                 }
 };
 
 void drawSphere();
 void drawCube();
+void drawCone();
 
 class Flower : public drawableObject {
         private:
@@ -262,6 +302,221 @@ class Flower : public drawableObject {
                         model_view = mvstack.pop();
                 }
                 Flower() : drawableObject() {
+                }
+};
+class Penguin : public drawableObject {
+	private:
+                int beakRot ;
+                int beakVel ;
+                int typeOfFace ;
+                int flapAngle ; 
+                int flapVel ;     
+                int legRightRot ;      
+                int legRightVel ;        
+                int legLeftRot;
+                int legLeftVel;
+                bool rightLeg;
+                const double walkTime ;
+                void drawPenguinBody() {
+                        mvstack.push(model_view);
+                                model_view *= Scale(2, 2.5, 2);
+                                drawSphere();
+                        model_view = mvstack.pop();
+                }
+                void drawPenguinEyes() {
+                        //0 is normal face, 1 is tired face
+                        mvstack.push(model_view);
+                                model_view *= Translate(0, .5, .75);
+                                model_view *= Translate(-.5, 0, 0);
+                                mvstack.push(model_view);
+                                        if (typeOfFace == this->PENGUIN_ROUNDEYES) {
+                                                model_view *= Scale(.2, .2, .2);
+                                                drawSphere();
+                                        } else if (typeOfFace == this->PENGUIN_LAZYEYES) {
+                                                model_view *= Scale(.3, .05, .1);
+                                                drawCube();
+                                        }
+                                model_view = mvstack.pop();
+                                model_view *= Translate(1, 0, 0);
+                                mvstack.push(model_view);
+                                        if (typeOfFace == this->PENGUIN_ROUNDEYES) {
+                                                model_view *= Scale(.2, .2, .2);
+                                                drawSphere();
+                                        } else if (typeOfFace == this->PENGUIN_LAZYEYES) {
+                                                model_view *= Scale(.3, .05, .1);
+                                                drawCube();
+                                        }
+                                model_view = mvstack.pop();
+                         model_view = mvstack.pop();
+                }
+                void drawPenguinBeak() {
+                        if (isCurrAnimation(this->PENGUIN_TALKING)) {        
+                                beakRot = 10;
+                                beakVel = 2;
+                        } else {
+                                beakRot = 0;
+                                beakVel = 0;
+                        }
+                        mvstack.push(model_view);
+                                model_view *= RotateX(180);
+                                model_view *= Translate(0, 0, -1);
+                                mvstack.push(model_view);
+                                        model_view *= RotateX(-beakRot* sin(beakVel*getTime(this->PENGUIN_TALKING)));
+                                        model_view *= Translate(0, 0, -.25);
+                                        model_view *= Scale(.3, .1, .5);
+                                        drawCone();
+                                model_view = mvstack.pop();
+                                mvstack.push(model_view);
+                                        model_view *= RotateX(beakRot * sin(beakVel*getTime(this->PENGUIN_TALKING)));
+                                        model_view *= Translate(0, 0, -.25);
+                                        model_view *= Scale(.3, .1, .5);
+                                        drawCone();
+                                model_view = mvstack.pop();
+                        model_view = mvstack.pop();
+                }
+                void drawPenguinHead() {
+                        //draw head
+                        mvstack.push(model_view);
+                                model_view *= Translate(0, 3.25, 0);
+                                drawSphere();
+                                //draw eyes
+                                drawPenguinEyes();
+                                drawPenguinBeak();
+                        model_view = mvstack.pop(); 
+                }
+                void drawPenguinArms() {
+                        //0 is no rotation, 1 is flap
+                        if (isCurrAnimation(this->PENGUIN_FLAPPING)) {
+                                flapAngle = 20;
+                                flapVel = 3;
+                        } else {
+                                flapAngle = 0;
+                                flapVel = 0;
+                        }
+                        mvstack.push(model_view);
+                                model_view *= Translate(1, 2, 0);
+                                model_view *= RotateZ(-10);
+                                model_view *= RotateZ(abs(flapAngle * sin(flapVel*getTime(this->PENGUIN_FLAPPING))));
+                                mvstack.push(model_view);
+                                        model_view *= RotateZ(80);
+                                        model_view *= Translate(0, -.5, 0);
+                                        model_view *= Scale(.1, 1, 1.5);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                                mvstack.push(model_view);
+                                        model_view *= Translate(1.5, -1.6, 0);
+                                        model_view *= RotateZ(20);
+                                        model_view *= Scale(.1, 3, 1.5);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                        model_view = mvstack.pop();
+                        mvstack.push(model_view);
+                                model_view *= Translate(-1, 2, 0);
+                                model_view *= RotateZ(10);
+                                model_view *= RotateZ(-abs(flapAngle * sin(flapVel*getTime(this->PENGUIN_FLAPPING))));
+                                mvstack.push(model_view);
+                                        model_view *= RotateZ(-80);
+                                        model_view *= Translate(0, -.5, 0);
+                                        model_view *= Scale(.1, 1, 1.5);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                                mvstack.push(model_view);
+                                        model_view *= Translate(-1.5, -1.6, 0);
+                                        model_view *= RotateZ(-20);
+                                        model_view *= Scale(.1, 3, 1.5);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                        model_view = mvstack.pop();
+                }
+                void drawPenguinLegs() {
+                        if (isCurrAnimation(this->PENGUIN_RIGHTLEG)) {
+                                legRightRot = 20;
+                        } else legRightRot = 0;
+                        if (isCurrAnimation(this->PENGUIN_LEFTLEG)) {
+                                legLeftRot = 20;
+                        } else legLeftRot = 0;
+                        mvstack.push(model_view);
+                                model_view *= Translate(0, -2.4, .2);
+                                model_view *= Translate(-.7, 0, 0);
+                                //right leg
+                                mvstack.push(model_view);
+                                                model_view *= RotateX(-abs(legRightRot * sin(legRightVel * getTime(this->PENGUIN_RIGHTLEG))));
+                                        model_view *= Translate(0, 0, 1);
+                                        model_view *= Scale(.5, .1, 1);
+                                        drawSphere();
+                                model_view = mvstack.pop();
+                                model_view *= Translate(1.4, 0, 0);
+                                //left leg
+                                mvstack.push(model_view);
+                                                model_view *= RotateX(-abs(legLeftRot * sin(legLeftVel * getTime(this->PENGUIN_LEFTLEG))));
+                                        model_view *= Translate(0, 0, 1);
+                                        model_view *= Scale(.5, .1, 1);
+                                        drawSphere();
+                                model_view = mvstack.pop();
+                        model_view = mvstack.pop();
+                }
+                void drawPenguin() {
+                        mvstack.push(model_view); 
+                                drawPenguinBody();
+                                drawPenguinHead();
+                                drawPenguinArms();
+                                drawPenguinLegs();
+                        model_view = mvstack.pop();
+                }
+        public:
+                enum PenguinActions {
+                        PENGUIN_TALKING,
+                        PENGUIN_FLAPPING,
+                        PENGUIN_ROUNDEYES,
+                        PENGUIN_LAZYEYES,
+                        PENGUIN_RIGHTLEG,
+                        PENGUIN_LEFTLEG
+                };
+                void walk() {
+                        if (getTime(Penguin::PENGUIN_LEFTLEG) < walkTime && getTime(Penguin::PENGUIN_RIGHTLEG) < walkTime) {
+                                if (rightLeg) {
+                                        anim(Penguin::PENGUIN_RIGHTLEG);
+                                } else {
+                                        anim(Penguin::PENGUIN_LEFTLEG);
+                                }
+                        } else if (getTime(Penguin::PENGUIN_LEFTLEG) >= walkTime || getTime(Penguin::PENGUIN_RIGHTLEG) >= walkTime) {
+                                if (rightLeg == false) {
+                                        stopAnim(Penguin::PENGUIN_LEFTLEG);
+                                        resetAnim(Penguin::PENGUIN_LEFTLEG);
+                                        rightLeg = true;
+                                }
+                                else { 
+                                        stopAnim(Penguin::PENGUIN_RIGHTLEG);
+                                        resetAnim(Penguin::PENGUIN_RIGHTLEG);
+                                        rightLeg = false;
+                                }
+                        }
+                }
+                virtual void draw() {
+                        drawableObject::draw();
+                        mvstack.push(model_view);
+                        model_view *= myMV;
+                        drawPenguin();
+                        model_view = mvstack.pop();
+                }
+                virtual void anim(int animIndex) {
+                        if (animIndex == this->PENGUIN_ROUNDEYES || animIndex == this->PENGUIN_LAZYEYES) {
+                                typeOfFace = animIndex;
+                        } else {
+                                drawableObject::anim(animIndex);
+                        }
+                }
+                Penguin() : walkTime(3) {
+                        beakRot = 10;
+                        beakVel = 2;
+                        flapAngle = 0; 
+                        typeOfFace = 0;
+                        flapVel = 0;    
+                        legLeftRot = 0;     
+                        legLeftVel = 1;     
+                        legRightRot = 0;
+                        legRightVel = 1;
+                        rightLeg = false;
                 }
 };
 
@@ -402,7 +657,40 @@ class Bee : public drawableObject {
                 Bee() : drawableObject() {
                 }
 };
-
+class CameraObject {
+        private:
+                queue<cameraCall> cameraScenes;
+                queue<double> cameraTimes;
+                cameraCall currCamera;
+                double startTime, endTime;
+        public:
+                void addCamera(cameraCall scene, double cameraSceneTime) {
+                        this->cameraScenes.push(scene);
+                        this->cameraTimes.push(cameraSceneTime);
+                }
+                CameraObject() : startTime(0), endTime(0), currCamera(NULL) {
+                }
+                void playCurrCamera() {
+                        if (currCamera == NULL) {
+                                if (cameraScenes.size() != 0) {
+                                    currCamera = cameraScenes.front();
+                                    endTime = startTime+cameraTimes.front();
+                                    cameraScenes.pop();
+                                    cameraTimes.pop();
+                                    if (endTime != startTime) {
+                                            currCamera();
+                                    }
+                                } else {
+                                        //do nothing
+                                }
+                        } else if (TIME > startTime && TIME < endTime) {
+                                currCamera();
+                        } else if (TIME >= endTime) {
+                                startTime = endTime;
+                                currCamera = NULL;
+                        } 
+                }
+};
 class SceneObject {
         private:
                 queue<sceneCall> scenes;
@@ -446,11 +734,13 @@ class SceneObject {
 class SceneManager {
         private:
                 vector<SceneObject*> sceneObjs;
+                CameraObject cameras; 
         public:
                 void drawScene() {
                         for (int i = 0; i < sceneObjs.size(); i++) {
                                 sceneObjs[i]->playCurrScene();
                         }
+                        cameras.playCurrCamera();
                 }                
                 int addObject(drawableObject* obj) {
                         SceneObject *newObj = new SceneObject(obj);
@@ -459,6 +749,9 @@ class SceneManager {
                 }
                 void addSceneToObject(int objIndex, sceneCall func, double sceneTimeLength) {
                        sceneObjs[objIndex]->addScene(func, sceneTimeLength); 
+                }
+                void addCameraMovement( cameraCall func, double cameraMoveLength) {
+                        cameras.addCamera(func, cameraMoveLength);
                 }
                 SceneManager() {
                 }
@@ -476,9 +769,11 @@ void drawWithTexture(void (*f)(void), GLuint tex) {
         glUniform1i(uEnableTex, 0);
 }
 
-void do360(drawableObject *obj);
+void do360();
 void doAnimate(drawableObject *obj);
 void moveForward(drawableObject *obj);
+void doPenguin(drawableObject *obj);
+void stopObject(drawableObject *obj);
 
 /////////////////////////////////////////////////////
 //    PROC: drawCylinder()
@@ -610,6 +905,7 @@ void myKey(unsigned char key, int x, int y)
 }
 
 SceneManager manager;
+int penguinIndex;
 /*********************************************************
     PROC: myinit()
     DOES: performs most of the OpenGL intialization
@@ -699,17 +995,11 @@ void myinit(void)
     Ball_Init(Arcball);
     Ball_Place(Arcball,qOne,0.75);
 
-    drawableObject *bee = new Bee();
-    drawableObject *flower = new Flower();
-    bee->move(5, 0, 0);
-    flower->move(0, -4, 0);
-    int beeIndex = manager.addObject(bee);
-    int flowerIndex = manager.addObject(flower);
-    manager.addSceneToObject(beeIndex, moveForward, 1);
-    manager.addSceneToObject(beeIndex, do360, 2);
-    manager.addSceneToObject(beeIndex, doAnimate, 10);
-    manager.addSceneToObject(flowerIndex, moveForward, 1);
-    manager.addSceneToObject(flowerIndex, doAnimate, 12);
+    drawableObject *penguin = new Penguin();
+    penguinIndex = manager.addObject(penguin);
+    manager.addCameraMovement(do360, 6.5);
+    manager.addSceneToObject(penguinIndex, doPenguin, 10);
+    manager.addSceneToObject(penguinIndex, stopObject, 2);
 }
 
 /*********************************************************
@@ -775,6 +1065,7 @@ void display(void)
     model_view *= Scale(Zoom);
 
     // Draw Something
+
     
     manager.drawScene();
 
@@ -928,15 +1219,28 @@ int main(int argc, char** argv)
 
 
 
-void do360(drawableObject *obj) {
-        obj->anim(0);
-        obj->resetAnim();
-        obj->rotate(0, 10, 0);        
+void do360() {
+        eye.x = 40*sin(TIME);
+        eye.z = 40*cos(TIME);
 }
 void moveForward(drawableObject *obj) {
-        obj->anim(1);
-        obj->move(0, 0, .5);
+        obj->move(0, 0, .01);
 }
 void doAnimate(drawableObject *obj) {
         obj->anim(1);
 }
+void doPenguin(drawableObject *obj) {
+        Penguin *peng = dynamic_cast<Penguin*>(obj);
+        peng->anim(Penguin::PENGUIN_TALKING);
+        peng->anim(Penguin::PENGUIN_FLAPPING);
+        peng->anim(Penguin::PENGUIN_LAZYEYES); 
+        if (peng->getTime(Penguin::PENGUIN_TALKING) > (double)4) {
+                peng->stopAnim(Penguin::PENGUIN_TALKING);
+        }        
+        peng->walk();
+        moveForward(peng);
+}
+void stopObject(drawableObject *obj) {
+        obj->stopAllAnim();
+}
+
