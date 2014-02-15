@@ -820,6 +820,7 @@ class CameraManager {
                                 currCamera->play();
                         } else if (TIME >= endTime) {
                                 startTime = endTime;
+                                delete currCamera;
                                 currCamera = NULL;
                         } 
                 }
@@ -1438,13 +1439,13 @@ void doPenguin(drawableObject *obj) {
         peng->anim(Penguin::PENGUIN_TALKING);
         peng->anim(Penguin::PENGUIN_FLAPPING);
         peng->anim(Penguin::PENGUIN_LAZYEYES); 
+        peng->move(0, 0, .1);
         peng->anim(Penguin::PENGUIN_SLIDING);
         if (peng->getTime(Penguin::PENGUIN_TALKING) > (double)4) {
                 peng->stopAnim(Penguin::PENGUIN_TALKING);
         }        
         peng->walk();
         //moveForward(peng);
-        peng->move(0, 0, .1);
         
         if (peng->getIndex() == firstPenguinIndex) {
                 penguinX = peng->getX();

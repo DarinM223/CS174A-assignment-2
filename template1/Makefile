@@ -9,7 +9,7 @@
 CC = g++
 
 # define any compile-time flags
-CFLAGS = -Wall -g
+CFLAGS = -Wall -O0 -g -std=c++0x
 
 # define any libraries to link into executable:
 #   if I want to link in libraries (libx.so or libx.a) I use the -llibname 
@@ -58,4 +58,3 @@ clean:
 
 depend: $(SRCS)
 	makedepend $(INCLUDES) $^
-
