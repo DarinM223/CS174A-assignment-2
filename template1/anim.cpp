@@ -83,6 +83,7 @@ ShapeData cubeData;
 ShapeData sphereData;
 ShapeData coneData;
 ShapeData cylData;
+ShapeData sealHeadData;
 
 TgaImage coolImage, earthImage;
 
@@ -139,12 +140,13 @@ class drawableObject {
         private:
                 friend class SceneObject;
         protected:
-                mat4 myMV;
                 double myTime;
                 bool isAnimated;
                 map<int, bool> animIndexMap;
                 map<int, double> animTimeMap;
                 double x, y, z;
+                double Rx, Ry, Rz;
+                double RrndX, RrndY, RrndZ;
                 int index;
                 vector<GLuint*> texture_stuff;
                 vector<TgaImage*> images;
@@ -160,29 +162,36 @@ class drawableObject {
                                 glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                         }
                 }
+                enum moveType {
+                        TRANSLATION,
+                        ROTATION
+                };
         public:
                 double getX() {return x;}
                 double getY() {return y;}
                 double getZ() {return z;}
+                void setX(double x) { this->x = x; }
+                void setY(double y) { this->y = y; }
+                void setZ(double z) { this->z = z; }
                 int getIndex() {return index;}
-                virtual void draw() { }
-                void drawObject() {
+                virtual void draw() = 0;
+                virtual void drawObject() {
                                 //myTime += .02;
                                 for (map<int, double>::iterator iter = animTimeMap.begin(); iter != animTimeMap.end(); iter++) {
                                         if (isCurrAnimation(iter->first))
                                                 iter->second += .02;
                                 }
                                 mvstack.push(model_view);
-                                model_view *= myMV;
-                                /*
-                                 *  [0] [4] [8] [12]
-                                 *  [1] [5] [9] [13]
-                                 *  [2] [6] [10][14]
-                                 *  [3] [7] [11][15]
-                                 */
-                                x = myMV[0][3];
-                                y = myMV[1][3];
-                                z = myMV[2][3];
+                                model_view *= RotateX(this->RrndX);
+                                model_view *= RotateY(this->RrndY);
+                                model_view *= RotateZ(this->RrndZ);
+
+                                model_view *= Translate(this->x, this->y, this->z);
+
+                                model_view *= RotateX(this->Rx);
+                                model_view *= RotateY(this->Ry);
+                                model_view *= RotateZ(this->Rz);
+                               
                                 draw();
                                 model_view = mvstack.pop();
                 }
@@ -211,10 +220,14 @@ class drawableObject {
                                 iter->second = false; //set all values to false
                         }
                 }
+                virtual void resetRotation() {
+                        rotate(-Rx, -Ry, -Rz);
+                }
                 virtual void resetAllAnim() { 
                         for (map<int,double>::iterator iter = animTimeMap.begin(); iter != animTimeMap.end(); iter++) {
                                 iter->second = 0;
                         }
+                        resetRotation();
                 }
                 virtual void resetAnim(int animIndex) {
                         if (animTimeMap.find(animIndex) != animTimeMap.end()) {
@@ -222,17 +235,26 @@ class drawableObject {
                         }
                 } 
                 void move(double x, double y, double z) {
-                        myMV *= Translate(x, y, z);
+                        this->x += x;
+                        this->y += y;
+                        this->z += z;
                 }
                 void rotate(int angleX, int angleY, int angleZ) {
-                        myMV *= RotateX(angleX);
-                        myMV *= RotateY(angleY);
-                        myMV *= RotateZ(angleZ);
+                        Rx += angleX;
+                        Ry += angleY;
+                        Rz += angleZ;
+                }
+                void rotateAroundObject(int angleX, int angleY, int angleZ) {
+                        RrndX += angleX;
+                        RrndY += angleY;
+                        RrndZ += angleZ;
                 }
                 drawableObject() : x(0), y(0), z(0) {
-                        myMV = mat4(1.0f);
                         myTime = 0;
                         isAnimated = false;
+                        Rx = 0;
+                        Ry = 0;
+                        Rz = 0;
                 }
                 virtual ~drawableObject() {
                 }
@@ -334,10 +356,7 @@ class Flower : public drawableObject {
         public:
                 virtual void draw() {
                         //drawableObject::draw();
-                        mvstack.push(model_view);
-                        model_view *= myMV;
                         drawFlower();
-                        model_view = mvstack.pop();
                 }
                 Flower() : drawableObject() {
                 }
@@ -356,10 +375,7 @@ class Ground : public drawableObject {
         public:
                 virtual void draw() {
                         //drawableObject::draw();
-                        mvstack.push(model_view);
-                        model_view *= myMV;
                         drawGround();
-                        model_view = mvstack.pop();
                 }
                 Ground() : drawableObject() {
                 }
@@ -610,10 +626,10 @@ class Penguin : public drawableObject {
                 }
                 virtual void draw() {
                         //drawableObject::draw();
-                        mvstack.push(model_view);
-                        model_view *= myMV;
+                        ///mvstack.push(model_view);
+                        ///model_view *= myMV;
                         drawPenguin();
-                        model_view = mvstack.pop();
+                        //model_view = mvstack.pop();
                 }
                 virtual void anim(int animIndex) {
                         if (animIndex == this->PENGUIN_ROUNDEYES || animIndex == this->PENGUIN_LAZYEYES) {
@@ -626,7 +642,7 @@ class Penguin : public drawableObject {
                         beakRot = 10;
                         beakVel = 2;
                         flapAngle = 0; 
-                        typeOfFace = 0;
+                        typeOfFace = PENGUIN_LAZYEYES;
                         flapVel = 0;    
                         legLeftRot = 0;     
                         legLeftVel = 1;     
@@ -634,6 +650,55 @@ class Penguin : public drawableObject {
                         legRightVel = 1;
                         rightLeg = false;
                         genTextures();
+                }
+};
+class LeopardSeal : public drawableObject {
+        private:
+                void drawSealHead() {
+                        mvstack.push(model_view);
+                                mvstack.push(model_view);
+                                      //model_view *= Translate(0, 0.5, 0);
+                                      model_view *= Scale(3, 2.5, 8);
+                                      drawSphere(); 
+                                model_view = mvstack.pop();        
+                                //mvstack.push(model_view);
+                                //      model_view *= Translate(0, 0, 2.5);
+                                //      model_view *= Scale(3, 3, 5);
+                                //      drawSphere();
+                                //model_view = mvstack.pop();
+                                //mvstack.push(model_view);
+                                //      model_view *= Translate(0, -.4, 3.5);
+                                //      model_view *= Scale(3, 2.5, 2.5);
+                                //      drawSphere();
+                                //model_view = mvstack.pop();
+                        model_view = mvstack.pop();
+                }
+                void drawSealNeck() {
+                        mvstack.push(model_view);
+                        model_view = mvstack.pop();
+                }
+                void drawSealBody() {
+                        mvstack.push(model_view);
+                        model_view = mvstack.pop();
+                }
+                void drawSeal() {
+                        mvstack.push(model_view);
+                                drawSealHead();
+                                drawSealNeck();
+                                drawSealBody();
+                        model_view = mvstack.pop();
+                }
+        public:
+                enum SealActions {
+                        SEAL_TALKING,
+                        SEAL_BITING,
+                        SEAL_HUMPING,
+                        SEAL_SWIMMING
+                };
+                virtual void draw() {
+                                drawSeal();
+                }
+                virtual void anim(int animIndex) {
                 }
 };
 
@@ -765,11 +830,7 @@ class Bee : public drawableObject {
                 }
         public:
                 virtual void draw() {
-                        //drawableObject::draw();
-                        mvstack.push(model_view);
-                        model_view *= myMV;
                         drawBee();
-                        model_view = mvstack.pop();
                 }
                 Bee() : drawableObject() {
                 }
@@ -929,6 +990,8 @@ void moveForward(drawableObject *obj);
 void doPenguin(drawableObject *obj);
 void stopObject(drawableObject *obj);
 
+Penguin *myPeng;
+double penguinX, penguinY, penguinZ;
 /////////////////////////////////////////////////////
 //    PROC: drawCylinder()
 //    DOES: this function 
@@ -1011,7 +1074,20 @@ void resetArcball()
 //    DOES: this function gets caled for any keypresses
 // 
 //////////////////////////////////////////////////////
-
+void setCamera() {
+        //eye.x = myPeng->getX();
+        //eye.z = myPeng->getZ() + 40;
+        //ref.x = myPeng->getX();
+        //ref.y = myPeng->getY();
+        //ref.z = myPeng->getZ();
+        eye.x = penguinX + 60;
+        //eye.y = penguinY;
+        eye.z = penguinZ;
+        ref.x = penguinX;
+        ref.y = penguinY;
+        ref.z = penguinZ;
+}
+double accel = 0;
 void myKey(unsigned char key, int x, int y)
 {
     float time ;
@@ -1022,10 +1098,10 @@ void myKey(unsigned char key, int x, int y)
         case 's':
             FrSaver.DumpPPM(Width,Height) ;
             break;
-        case 'r':
-            resetArcball() ;
-            glutPostRedisplay() ;
-            break ;
+        //case 'r':
+        //    resetArcball() ;
+        //    glutPostRedisplay() ;
+        //    break ;
         case 'a': // togle animation
             Animate = 1 - Animate ;
             // reset the timer to point to the current time		
@@ -1053,6 +1129,34 @@ void myKey(unsigned char key, int x, int y)
         case '?':
             instructions();
             break;
+        case 'f':
+            accel += 12;
+            break;
+        //case 'r':
+        //    myPeng->move(0, 0,  0.5);
+        //    myPeng->walk();
+        //    myPeng->anim(Penguin::PENGUIN_FLAPPING);
+        //    setCamera();
+        //    break;
+        //case 'f':
+        //    myPeng->move(0, 0, -.5);
+        //    myPeng->walk();
+        //    myPeng->anim(Penguin::PENGUIN_FLAPPING);
+        //    setCamera();
+        //    break;
+        //case 'd':
+        //    myPeng->move(.5, 0, 0);
+        //    myPeng->walk();
+        //    myPeng->anim(Penguin::PENGUIN_FLAPPING);
+        //    setCamera();
+        //    break;
+        //case 'g':
+        //    myPeng->move(-.5, 0, 0);
+        //    myPeng->walk();
+        //    myPeng->anim(Penguin::PENGUIN_FLAPPING);
+        //    setCamera();
+        //    break;
+        
     }
     glutPostRedisplay() ;
 
@@ -1060,7 +1164,6 @@ void myKey(unsigned char key, int x, int y)
 
 SceneManager manager;
 int firstPenguinIndex;
-double penguinX, penguinY, penguinZ;
 /*********************************************************
     PROC: myinit()
     DOES: performs most of the OpenGL intialization
@@ -1102,49 +1205,6 @@ void myinit(void)
 
     glEnable(GL_DEPTH_TEST);
 
-    //TgaImage coolImage;
-    //if (!coolImage.loadTGA("fur2.tga"))
-    //{
-    //    printf("Error loading image file\n");
-    //    exit(1);
-    //}
-    //
-    //TgaImage earthImage;
-    ////if (!earthImage.loadTGA("earth.tga"))
-    //if (!earthImage.loadTGA("fur.tga"))
-    //{
-    //    printf("Error loading image file\n");
-    //    exit(1);
-    //}
-
-    //
-    //glGenTextures( 1, &texture_cube );
-    //glBindTexture( GL_TEXTURE_2D, texture_cube );
-    //
-    //glTexImage2D(GL_TEXTURE_2D, 0, 4, coolImage.width, coolImage.height, 0,
-    //             (coolImage.byteCount == 3) ? GL_BGR : GL_BGRA,
-    //             GL_UNSIGNED_BYTE, coolImage.data );
-    //glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-    //glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-    //glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-    //glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-    //
-    //
-    //glGenTextures( 1, &texture_earth );
-    //glBindTexture( GL_TEXTURE_2D, texture_earth );
-    //
-    //glTexImage2D(GL_TEXTURE_2D, 0, 4, earthImage.width, earthImage.height, 0,
-    //             (earthImage.byteCount == 3) ? GL_BGR : GL_BGRA,
-    //             GL_UNSIGNED_BYTE, earthImage.data );
-    //
-    //glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-    //glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-    //glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-    //glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-    
-    // Set texture sampler variable to texture unit 0
-    // (set in glActiveTexture(GL_TEXTURE0))
-    
     glUniform1i( uTex, 0);
     
     Arcball = new BallData;
@@ -1152,26 +1212,33 @@ void myinit(void)
     Ball_Place(Arcball,qOne,0.75);
 
     drawableObject *ground = new Ground();
+    myPeng = new Penguin();
+    myPeng->move(0, 3, 3);
+    manager.addObject(myPeng);
     int groundIndex = manager.addObject(ground);
-    
+    //drawableObject *seal = new LeopardSeal();
+    //int sealIndex = manager.addObject(seal);
     for (int i = 0; i < 5; i++) {
         drawableObject *penguin = new Penguin();
-        penguin->move(i*20, 3, 0);
+        penguin->move(i*20, 10, 0);
         int penguinIndex = manager.addObject(penguin);
         if (i == 0) {
                 firstPenguinIndex = penguinIndex;
         }
+        manager.addSceneToObject(penguinIndex, stopObject, 7);
         manager.addSceneToObject(penguinIndex, doPenguin, 5);
         manager.addSceneToObject(penguinIndex, stopObject, 2);
     }
     for (int i = 1; i > -5; i--) {
             drawableObject *penguin = new Penguin();
-            penguin->move(i*20, 3, 0);
+            penguin->move(i*20, 10, 0);
             int penguinIndex = manager.addObject(penguin);
+            manager.addSceneToObject(penguinIndex, stopObject, 7);
             manager.addSceneToObject(penguinIndex, doPenguin, 5);
             manager.addSceneToObject(penguinIndex, stopObject, 2);
     }
     eye.y = 20;
+    manager.addCameraMovement(new CameraObject(do360), 7);
     CameraObject *cam1 = new CameraObject(panRight);
     cam1->addCamera(zoomOut);
     manager.addCameraMovement(cam1, 3);
@@ -1187,7 +1254,7 @@ void myinit(void)
         manager.addCameraMovement(new CameraObject(zoomIn), .2);
         manager.addCameraMovement(new CameraObject(zoomOut), 1);
     }
-    manager.addCameraMovement(new CameraObject(do360), 7.5);
+    manager.addCameraMovement(new CameraObject(setCamera), 1);
 }
 
 /*********************************************************
@@ -1223,6 +1290,9 @@ void set_colour(float r, float g, float b)
 **********************************************************
 **********************************************************
 **********************************************************/
+double lastTime = 0;
+int frames = 0;
+int FPS = 0;
 void display(void)
 {
     // Clear the screen with the background colour (set in myinit)
@@ -1253,8 +1323,13 @@ void display(void)
     model_view *= Scale(Zoom);
 
     // Draw Something
-    
+    frames++; 
     manager.drawScene();
+    if ((TIME - lastTime) >= 1) {
+            FPS = frames;
+            frames = 0;
+            lastTime = TIME;
+    }
 
     glutSwapBuffers();
     if(Recording == 1)
@@ -1355,10 +1430,11 @@ void idleCB(void)
             TIME += 0.033 ; // save at 30 frames per second.
         
         
-        printf("TIME %f\n", TIME) ;
+        printf("FPS: %d\n", FPS);
         glutPostRedisplay() ; 
     }
 }
+
 /*********************************************************
      PROC: main()
      DOES: calls initialization, then hands over control
@@ -1399,20 +1475,14 @@ int main(int argc, char** argv)
 
 
 void do360() {
-        ref.x = penguinX;
-        ref.y = penguinY;
-        ref.z = penguinZ;
-        eye.x = penguinX;
-        eye.y = penguinY+3;
-        eye.z = 40+penguinZ;
-        //if (penguinX < 0) {
-        //        eye.x = (-40+penguinX) * sin(TIME);
-        //        eye.z = (-40+penguinZ) * cos(TIME);
-        //} else {
-                //eye.x = (40)*sin(TIME);
-                //eye.z = (40)*cos(TIME);
-        //}
-        //eye.y += .01;
+        eye.x = (40)*sin(TIME);
+        eye.x += TIME;
+        eye.z = (40)*cos(TIME);
+        if (TIME < 1.67)
+                eye.z -= TIME/2;
+        else {
+                eye.z += TIME/2;
+        }
 }
 void panLeft() {
         eye.x += 1;
@@ -1434,26 +1504,31 @@ void moveForward(drawableObject *obj) {
 void doAnimate(drawableObject *obj) {
         obj->anim(1);
 }
+
 void doPenguin(drawableObject *obj) {
         Penguin *peng = dynamic_cast<Penguin*>(obj);
         peng->anim(Penguin::PENGUIN_TALKING);
         peng->anim(Penguin::PENGUIN_FLAPPING);
         peng->anim(Penguin::PENGUIN_LAZYEYES); 
-        peng->move(0, 0, .1);
+        peng->move(0, 0, 1);
+        peng->setY(10 + 2 * sin(2*TIME));
+        //peng->setY((.5)*(accel - 9.8)*pow(TIME, 2)  + 10);
+        //if (accel > 0) {accel--;}
+        peng->rotate(0, 0, 20);
         peng->anim(Penguin::PENGUIN_SLIDING);
         if (peng->getTime(Penguin::PENGUIN_TALKING) > (double)4) {
                 peng->stopAnim(Penguin::PENGUIN_TALKING);
         }        
         peng->walk();
-        //moveForward(peng);
         
         if (peng->getIndex() == firstPenguinIndex) {
                 penguinX = peng->getX();
                 penguinY = peng->getY();
                 penguinZ = peng->getZ();
+                setCamera();
         }
 }
 void stopObject(drawableObject *obj) {
         obj->stopAllAnim();
+        obj->resetAllAnim();
 }
-
