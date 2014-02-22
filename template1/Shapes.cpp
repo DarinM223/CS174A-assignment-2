@@ -110,6 +110,76 @@ void generateCube(GLuint program, ShapeData* cubeData)
         (float*)cubeUV,      sizeof(cubeUV));
 }
 
+const int numPyrVertices= 18;
+point4 pyrPoints[numPyrVertices];
+point3 pyrNormals[numPyrVertices];
+point2 pyrUV[numPyrVertices];
+
+// Vertices of a unit cube centered at origin, sides aligned with axes
+point4 pyrVertices[5] = {
+    point4(-.5, 0, .5, 1.0),
+    point4(.5, 0, .5, 1.0),
+    point4(-.5, 0, -.5, 1.0),
+    point4(.5, 0, -.5, 1.0),
+    point4(0, .5, 0, 1.0),
+};
+
+int pyrIndex = 0;
+void pyrQuad( int a, int b, int c, int d, const point3& normal )
+{
+    pyrPoints[pyrIndex] = vertices[a]; pyrNormals[pyrIndex] = normal; 
+    pyrIndex++;
+    pyrPoints[pyrIndex] = vertices[b]; pyrNormals[pyrIndex] = normal;
+    pyrIndex++;
+    pyrPoints[pyrIndex] = vertices[c]; pyrNormals[pyrIndex] = normal;
+    pyrIndex++;
+    pyrPoints[pyrIndex] = vertices[a]; pyrNormals[pyrIndex] = normal;
+    pyrIndex++;
+    pyrPoints[pyrIndex] = vertices[c]; pyrNormals[pyrIndex] = normal;
+    pyrIndex++;
+    pyrPoints[pyrIndex] = vertices[d]; pyrNormals[pyrIndex] = normal;
+    pyrIndex++;
+}
+point3 generateNormal(int a, int b, int c) {
+    vec4 vA = vertices[b] - vertices[a];
+    vec4 vB = vertices[c] - vertices[a];
+
+    return (cross(vA, vB));
+}
+void tri( int a, int b, int c, const point3& normal) {
+    //make sure its done clockwise
+    //vector a  p2 - 
+    pyrPoints[pyrIndex] = vertices[a]; pyrNormals[pyrIndex] = normal; 
+    pyrIndex++;
+    pyrPoints[pyrIndex] = vertices[b]; pyrNormals[pyrIndex] = normal;
+    pyrIndex++;
+    pyrPoints[pyrIndex] = vertices[c]; pyrNormals[pyrIndex] = normal;
+    pyrIndex++;
+}
+void colorPyramid() {
+        tri(4, 0, 1, generateNormal(4, 0, 1));
+        tri(4, 1, 2, generateNormal(4, 1, 2));
+        tri(4, 2, 3 ,generateNormal(4, 2, 3));
+        tri(4, 3, 0, generateNormal(4, 3, 0));
+        tri(3, 2, 1, generateNormal(3, 2, 1));
+        tri(0, 3, 1, generateNormal(0, 3, 1));
+        //pyrQuad(0, 3, 2, 1, point3(0, 0, 1));
+}
+
+void generatePyramid(GLuint program, ShapeData* pyrData) {
+    colorPyramid();
+    pyrData->numVertices = numPyrVertices;
+
+    // Create a vertex array object
+    glGenVertexArrays( 1, &pyrData->vao );
+    glBindVertexArray( pyrData->vao );
+
+    // Set vertex attributes
+    setVertexAttrib(program, 
+        (float*)pyrPoints,  sizeof(pyrPoints), 
+        (float*)pyrNormals, sizeof(pyrNormals),
+        0, 0);
+}
 
 //----------------------------------------------------------------------------
 // Sphere approximation by recursive subdivision of a tetrahedron
@@ -320,16 +390,5 @@ void generateCylinder(GLuint program, ShapeData* cylData)
                     (float*)cylNormals, sizeof(cylNormals),
                     0, 0);
 }
-
-
-
-
-
-
-
-
-
-
-
 
 

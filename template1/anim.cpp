@@ -83,7 +83,7 @@ ShapeData cubeData;
 ShapeData sphereData;
 ShapeData coneData;
 ShapeData cylData;
-ShapeData sealHeadData;
+ShapeData pyrData;
 
 TgaImage coolImage, earthImage;
 
@@ -190,15 +190,17 @@ class drawableObject {
                 void setY(double y) { this->y = y; }
                 void setZ(double z) { this->z = z; }
                 int getIndex() {return index;}
+                virtual void updateScene() {
+                                for (map<int, double>::iterator iter = animTimeMap.begin(); iter != animTimeMap.end(); iter++) {
+                                        if (isCurrAnimation(iter->first))
+                                                iter->second += .02;
+                                }
+                }
 
                 /*
                  * What is called to draw the object
                  */
                 virtual void drawObject() {
-                                for (map<int, double>::iterator iter = animTimeMap.begin(); iter != animTimeMap.end(); iter++) {
-                                        if (isCurrAnimation(iter->first))
-                                                iter->second += .02;
-                                }
                                 mvstack.push(model_view);
 
                                 //do rotations around an arbitrary origin
@@ -290,105 +292,21 @@ class drawableObject {
 };
 
 void drawSphere();
+void drawPyramid();
 void drawCube();
 void drawCone();
-
-class Flower : public drawableObject {
-        private:
-                void drawFlowerHead() {
-                        mvstack.push(model_view);
-                        set_colour(1.0, 0.0, 0.0);
-                        model_view *= RotateZ(12*sin(myTime));
-                        model_view *= Translate(0, 9.9, 0);
-                        model_view *= Scale(1.5, 1.5, 1.5);
-                        drawSphere();
-                        model_view = mvstack.pop();
-                }
-                void drawFlowerStem() {
-                        mvstack.push(model_view);
-                                set_colour(0.5, 0.35, 0.05);
-                                //draw pieces of the stem
-                                //#1
-                                mvstack.push(model_view);
-                                        model_view *= RotateZ(1.25*sin(myTime));
-                                        model_view *= Translate(0, 1.0, 0);
-                                        model_view *= RotateZ(1.25*sin(myTime));
-                                        model_view *= Scale(.15, 1, .15);
-                                        drawCube();
-                                model_view = mvstack.pop();
-                                //#2
-                                mvstack.push(model_view);
-                                        model_view *= RotateZ(2.5*sin(myTime));
-                                        model_view *= Translate(0, 2, 0);
-                                        model_view *= RotateZ(2.5*sin(myTime));
-                                        model_view *= Scale(.15, 1, .15);
-                                        drawCube();
-                                model_view = mvstack.pop();
-                                //#3
-                                mvstack.push(model_view);
-                                        model_view *= RotateZ(3.75*sin(myTime));
-                                        model_view *= Translate(0, 3, 0);
-                                        model_view *= RotateZ(3.75*sin(myTime));
-                                        model_view *= Scale(.15, 1, .15);
-                                        drawCube();
-                                model_view = mvstack.pop();
-                                //#4
-                                mvstack.push(model_view);
-                                        model_view *= RotateZ(5*sin(myTime));
-                                        model_view *= Translate(0, 4, 0);
-                                        model_view *= RotateZ(5*sin(myTime));
-                                        model_view *= Scale(.15, 1, .15);
-                                        drawCube();
-                                model_view = mvstack.pop();
-                                //#5
-                                mvstack.push(model_view);
-                                        model_view *= RotateZ(6.25*sin(myTime));
-                                        model_view *= Translate(0, 5, 0);
-                                        model_view *= RotateZ(6.25*sin(myTime));
-                                        model_view *= Scale(.15, 1, .15);
-                                        drawCube();
-                                model_view = mvstack.pop();
-                                //#6
-                                mvstack.push(model_view);
-                                        model_view *= RotateZ(7.5*sin(myTime));
-                                        model_view *= Translate(0, 6, 0);
-                                        model_view *= RotateZ(7.5*sin(myTime));
-                                        model_view *= Scale(.15, 1, .15);
-                                        drawCube();
-                                model_view = mvstack.pop();
-                                //#7
-                                mvstack.push(model_view);
-                                        model_view *= RotateZ(8.75*sin(myTime));
-                                        model_view *= Translate(0, 7, 0);
-                                        model_view *= RotateZ(8.75*sin(myTime));
-                                        model_view *= Scale(.15, 1, .15);
-                                        drawCube();
-                                model_view = mvstack.pop();
-                                //#8
-                                mvstack.push(model_view);
-                                        model_view *= RotateZ(10*sin(myTime));
-                                        model_view *= Translate(0, 8, 0);
-                                        model_view *= RotateZ(10*sin(myTime));
-                                        model_view *= Scale(.15, 1, .15);
-                                        drawCube();
-                                model_view = mvstack.pop();
-                        model_view = mvstack.pop();
-                }
-                
-                void drawFlower() {
-                        //draw the flower parts
-                        mvstack.push(model_view);
-                        drawFlowerHead();
-                        drawFlowerStem();
-                        model_view = mvstack.pop();
-                }
+class Pyramid : public drawableObject {
         public:
                 virtual void draw() {
-                        drawFlower();
+                        mvstack.push(model_view);
+                                set_colour(1, 0, 0);
+                                drawPyramid();
+                        model_view = mvstack.pop();
                 }
-                Flower() : drawableObject() {
+                Pyramid() : drawableObject() {
                 }
 };
+
 class Ground : public drawableObject {
         private:
                 void drawGround() {
@@ -398,16 +316,212 @@ class Ground : public drawableObject {
                         model_view *= Scale(1000, 1, 1000);
                         drawCube();
                         model_view = mvstack.pop();
+                        mvstack.push(model_view);
+                                set_colour(0, 0, 1);
+                                model_view *= Scale(2000, 0, 2000);
+                                drawCube();
+                        model_view = mvstack.pop();
                 }
         public:
                 virtual void draw() {
-                        //drawableObject::draw();
                         drawGround();
                 }
                 Ground() : drawableObject() {
                 }
 };
 void drawWithTexture(void (*f)(void), GLuint tex);
+class Fish : public drawableObject {
+	private:
+        void drawFish() {
+                //draw body
+                mvstack.push(model_view);
+                       model_view *= Scale(.25, .5, 1);
+                       drawSphere(); 
+                model_view = mvstack.pop();
+        
+                //draw tail
+                mvstack.push(model_view);
+                        model_view *= Translate(0, 0, -1);
+                        model_view *= RotateX(180);
+                        model_view *= Scale(.1, .5, .1);
+                        drawCone();
+                model_view = mvstack.pop();
+        
+                //draw eyes
+                mvstack.push(model_view);
+                       model_view *= Translate(.25, 0, .5);
+                       model_view *= Scale(.1, .1, .1);
+                       drawSphere(); 
+                model_view = mvstack.pop();
+        
+                mvstack.push(model_view);
+                       model_view *= Translate(-.25, 0, .5);
+                       model_view *= Scale(.1, .1, .1);
+                       drawSphere(); 
+                model_view = mvstack.pop();
+        }
+        public:
+                virtual void draw() {
+                        drawFish();
+                }
+                Fish() : drawableObject() { }
+};
+class Bird : public drawableObject {
+        private:
+                void drawBird() {
+                        //draw body
+                        mvstack.push(model_view);
+                                model_view *= Scale(.5, .5, 1);
+                                drawSphere();
+                        model_view = mvstack.pop();
+                        //draw beak and eyes
+                        mvstack.push(model_view);
+                                model_view *= Translate(0, 0, 1);
+                                mvstack.push(model_view);
+                                        model_view *= Scale(.3, .3, .5);
+                                        model_view *= RotateX(180);
+                                        drawCone();
+                                model_view = mvstack.pop();
+                                mvstack.push(model_view);
+                                        model_view *= Translate(.35, .1, -.3);
+                                        model_view *= Scale(.05, .05, .05);
+                                        drawSphere();
+                                model_view = mvstack.pop();
+                                mvstack.push(model_view);
+                                        model_view *= Translate(-.35, .1, -.3);
+                                        model_view *= Scale(.05, .05, .05);
+                                        drawSphere();
+                                model_view = mvstack.pop();
+                        model_view = mvstack.pop();
+                        //draw wings
+                        mvstack.push(model_view);
+                                mvstack.push(model_view);
+                                       model_view *= Translate(.5, .1, .1); 
+                                       model_view *= RotateZ(10*sin(TIME));
+                                       model_view *= Translate(.5, 0, 0);
+                                       model_view *= Scale(1, .1, .5);
+                                       drawCube();
+                                model_view = mvstack.pop();
+                                mvstack.push(model_view);
+                                       model_view *= Translate(-.5, .1, .1); 
+                                       model_view *= RotateZ(-10*sin(TIME));
+                                       model_view *= Translate(-.5, 0, 0);
+                                       model_view *= Scale(1, .1, .5);
+                                       drawCube();
+                                model_view = mvstack.pop();
+                        model_view = mvstack.pop();
+                        //draw tail
+                        mvstack.push(model_view);
+                                model_view *= Translate(0, 0, -1);
+                                model_view *= RotateX(180);
+                                model_view *= Scale(.5, .5, .5);
+                                drawCone();
+                        model_view = mvstack.pop();
+                
+                        //draw legs
+                        mvstack.push(model_view);
+                                mvstack.push(model_view);
+                                        model_view *= Translate(.2, -.45, 0);
+                                        model_view *= RotateX(-30);
+                                        model_view *= RotateX(-abs(10 * sin(TIME)));
+                                        model_view *= Translate(0, -0.25, 0);
+                                        model_view *= Scale(.1, .5, .1);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                                mvstack.push(model_view);
+                                        model_view *= Translate(-.2, -.45, 0);
+                                        model_view *= RotateX(-30);
+                                        model_view *= RotateX(-abs(10 * sin(TIME)));
+                                        model_view *= Translate(0, -0.25, 0);
+                                        model_view *= Scale(.1, .5, .1);
+                                        drawCube();
+                                model_view = mvstack.pop();
+                        model_view = mvstack.pop();
+                }
+        public:
+                virtual void draw() {
+                        drawBird();
+                }
+                Bird() : drawableObject() { }
+};
+class Whale : public drawableObject {
+	private:
+		void drawWhale() {
+                        mvstack.push(model_view);
+                                model_view *= Scale(2, 2, 2);
+                                //draws body of whale
+                                mvstack.push(model_view);
+                                        model_view *= Scale(4, 4, 8);
+                                        drawSphere();
+                                model_view = mvstack.pop();
+                                //draws first part of tail of whale
+                                mvstack.push(model_view);
+                                        model_view *= Translate(0, 0, -7);
+                                        model_view *= Scale(3.2, 3.2, 4);
+                                        drawCone();
+                                model_view = mvstack.pop();
+                                //draws second part of tail of whale
+                                mvstack.push(model_view);
+                                        model_view *= Translate(0, 0, -10);
+                                        model_view *= RotateX(180);
+                                        model_view *= Scale(4, 1, 2);
+                                        drawCone();
+                                model_view = mvstack.pop();
+
+                                //draws top fin of whale
+                                mvstack.push(model_view);
+                                        model_view *= Translate(0, 4.5, 0);
+                                        model_view *= RotateX(90);
+                                        model_view *= RotateZ(45);
+                                        model_view *= Scale(2, 2, 2);
+                                        drawPyramid();
+                                model_view = mvstack.pop();
+
+                                mvstack.push(model_view);
+                                        //draws side fins of whale
+                                        mvstack.push(model_view);
+                                                model_view *= Translate(3, -2, 2);
+                                                model_view *= RotateZ(-30);
+                                                model_view *= RotateY(-10);
+                                                model_view *= RotateZ(10 * sin(TIME));
+                                                model_view *= Translate(2, 0, 0);
+                                                model_view *= Scale(4, .5, 4);
+                                                drawCube();
+                                        model_view = mvstack.pop();
+
+                                        mvstack.push(model_view);
+                                                model_view *= Translate(-3, -2, 2);
+                                                model_view *= RotateZ(30);
+                                                model_view *= RotateY(10);
+                                                model_view *= RotateZ(-10 * sin(TIME));
+                                                model_view *= Translate(-2, 0, 0);
+                                                model_view *= Scale(4, .5, 4);
+                                                drawCube();
+                                        model_view = mvstack.pop();
+                                model_view = mvstack.pop();
+                                
+                                //the eyes of the whale
+                                mvstack.push(model_view);
+                                        mvstack.push(model_view);
+                                                model_view *= Translate(3.5, 0, 4);
+                                                model_view *= Scale(.2, .2, .2);
+                                                drawSphere();
+                                        model_view = mvstack.pop();
+
+                                        mvstack.push(model_view);
+                                                model_view *= Translate(-3.5, 0, 4);
+                                                model_view *= Scale(.2, .2, .2);
+                                                drawSphere();
+                                        model_view = mvstack.pop();
+                                model_view = mvstack.pop();
+                        model_view = mvstack.pop();
+                }
+        public:
+                virtual void draw() {
+                        drawWhale();
+                }
+                Whale() : drawableObject() { }
+};
 class Penguin : public drawableObject {
 	private:
                 //specific animation variables
@@ -727,134 +841,6 @@ class LeopardSeal : public drawableObject {
                 }
 };
 
-class Bee : public drawableObject {
-        private:
-                void drawBody() {
-                    mvstack.push(model_view);
-                    //draw body
-                    model_view *= Scale(2, 1, 1);
-                    //set color to grey
-                    set_colour(.658, .658, .658);
-                    drawCube();
-                    model_view = mvstack.pop();
-                }
-                void drawHead() {
-                    mvstack.push(model_view);
-                    //draw head
-                    model_view *= Translate(-1.5, 0, 0);
-                    model_view *= Scale(.5, .5, .5);
-                    //set color to blue
-                    set_colour(0.0, 0.0, 1.0);
-                    drawSphere();
-                    model_view = mvstack.pop();
-                }
-                void drawTail() {
-                    mvstack.push(model_view);
-                    //draw tail
-                    model_view *= Translate(2.5, 0, 0);
-                    model_view *= Scale(1.5, .75, .75);
-                    //set color to yellow
-                    set_colour(1.0, 1.0, 0.0);
-                    drawSphere();
-                    model_view = mvstack.pop();
-                }
-                void drawBee() {
-                    mvstack.push(model_view);
-                
-                    //draw bee parts
-                    drawBody();    
-                    drawHead();
-                    drawTail();
-                    drawWings();
-                    drawLegz();
-                
-                    model_view = mvstack.pop();
-                }
-                void drawWings() {
-                        mvstack.push(model_view);
-                        set_colour(.658, .658, .658);
-                                mvstack.push(model_view); //draw first wing
-                                        model_view *= Translate(0, .5, -.5);
-                                        model_view *= RotateX(50*sin(myTime));
-                                        model_view *= Translate(0, 0.025, -1);
-                                        model_view *= Scale(1.0, 0.05, 2);
-                                        drawCube();
-                                model_view = mvstack.pop();
-                
-                                mvstack.push(model_view); //draw second wing
-                                        model_view *= Translate(0, .5, .5);
-                                        model_view *= RotateX(-50*sin(myTime));
-                                        model_view *= Translate(0, 0.025, 1);
-                                        model_view *= Scale(1.0, 0.05, 2);
-                                        drawCube();
-                                model_view = mvstack.pop();
-                        model_view = mvstack.pop();
-                }
-                void drawLeg(int side) {
-                        if (side == 0) { //if left leg
-                                mvstack.push(model_view); //draw thigh
-                                        model_view *= Translate(0, -.5, -.5);
-                                        model_view *= RotateX(-abs(20 * sin(.5 * myTime)));
-                                        mvstack.push(model_view);
-                                                model_view *= Translate(0, -.3, -.075);
-                                                model_view *= Scale(.15, .6, .15);
-                                                drawCube();
-                                        model_view = mvstack.pop();
-                
-                                        model_view *= Translate(0, -.6, 0); //move down to draw foot
-                                        mvstack.push(model_view); //draw foot
-                                                model_view *= RotateX(-abs(20 * sin(.5 * myTime)));
-                                                model_view *= Translate(0, -.3, -.075);
-                                                model_view *= Scale(.15, .6, .15);
-                                                drawCube();
-                                        model_view = mvstack.pop();
-                                model_view = mvstack.pop();
-                        } else if (side == 1) { //if right leg
-                                mvstack.push(model_view); //draw thigh
-                                        model_view *= Translate(0, -.5, .5);
-                                        model_view *= RotateX(abs(20 * sin(.5 * myTime)));
-                                        mvstack.push(model_view);
-                                                model_view *= Translate(0, -.3, .075);
-                                                model_view *= Scale(.15, .6, .15);
-                                                drawCube();
-                                        model_view = mvstack.pop();
-                
-                                        model_view *= Translate(0, -.6, 0); //move down to draw foot
-                                        mvstack.push(model_view); //draw foot
-                                                model_view *= RotateX(abs(20 * sin(.5 * myTime)));
-                                                model_view *= Translate(0, -.3, .075);
-                                                model_view *= Scale(.15, .6, .15);
-                                                drawCube();
-                                        model_view = mvstack.pop();
-                                model_view = mvstack.pop();
-                        }
-                }
-                void drawLegz() {
-                    //draw left legs
-                    mvstack.push(model_view);
-                        drawLeg(0);
-                        model_view *= Translate(-.5, 0, 0);
-                        drawLeg(0);
-                        model_view *= Translate(1, 0, 0);
-                        drawLeg(0);
-                    model_view = mvstack.pop();
-                
-                    //draw right legs
-                    mvstack.push(model_view);
-                        drawLeg(1);
-                        model_view *= Translate(-.5, 0, 0);
-                        drawLeg(1);
-                        model_view *= Translate(1, 0, 0);
-                        drawLeg(1);
-                    model_view = mvstack.pop();
-                }
-        public:
-                virtual void draw() {
-                        drawBee();
-                }
-                Bee() : drawableObject() {
-                }
-};
 
 /*
  * Represents a camera object which holds multiple camera movements. 
@@ -892,7 +878,7 @@ class CameraManager {
                         cameraScenes.push(camScene);
                         cameraTimes.push(time);
                 }
-                void playCurrCamera() {
+                void updateCurrCamera() {
                         //if there isn't a current camera movement playing
                         if (currCamera == NULL) {
                                 //if there is still movement scenes left
@@ -964,9 +950,10 @@ class SceneObject {
                 void setGravity(sceneCall gravFunc) {
                         this->gravFunc = gravFunc;
                 } 
-                void playCurrScene() {
+                void updateCurrScene() {
                         //do gravity function
                         if (gravFunc != NULL) gravFunc(object);
+                        object->updateScene(); 
                         //if there isn't a current scene playing
                         if (currScene == NULL) {
                                 if (scenes.size() != 0) { //if there is stuff left in the scene queue
@@ -987,7 +974,7 @@ class SceneObject {
                                 startTime = endTime;
                                 currScene = NULL;
                         } 
-                        object->drawObject();
+                        //object->drawObject();
                 } 
 };
 /*
@@ -998,13 +985,18 @@ class SceneManager {
                 vector<SceneObject*> sceneObjs;
                 CameraManager camManager; 
         public:
-                void drawScene() {
+                void drawObjects() {
+                        for (size_t i = 0; i < sceneObjs.size(); i++) {
+                                sceneObjs[i]->getObject()->drawObject();
+                        }
+                }
+                void updateScene() {
                         //play current scene for every object
                         for (size_t i = 0; i < sceneObjs.size(); i++) {
-                                sceneObjs[i]->playCurrScene();
+                                sceneObjs[i]->updateCurrScene();
                         }
                         //play current camera movement
-                        camManager.playCurrCamera();
+                        camManager.updateCurrCamera();
                 }                
                 int addObject(drawableObject* obj) {
                         SceneObject *newObj = new SceneObject(obj);
@@ -1034,6 +1026,7 @@ class SceneManager {
                 }
 };
 
+//draws the primitive with the certain texture
 void drawWithTexture(void (*f)(void), GLuint tex) {
         glDisable(GL_TEXTURE_2D);
         glBindTexture(GL_TEXTURE_2D, tex);
@@ -1101,12 +1094,9 @@ void drawCone(void)
 
 void drawCube(void)
 {
-    //glBindTexture( GL_TEXTURE_2D, texture_cube );
-    //glUniform1i( uEnableTex, 1 );
     glUniformMatrix4fv( uModelView, 1, GL_TRUE, model_view );
     glBindVertexArray( cubeData.vao );
     glDrawArrays( GL_TRIANGLES, 0, cubeData.numVertices );
-    //glUniform1i( uEnableTex, 0 );
 }
 
 
@@ -1120,12 +1110,15 @@ void drawCube(void)
 
 void drawSphere(void)
 {
-    //glBindTexture( GL_TEXTURE_2D, texture_earth);
-    //glUniform1i( uEnableTex, 1);
     glUniformMatrix4fv( uModelView, 1, GL_TRUE, model_view );
     glBindVertexArray( sphereData.vao );
     glDrawArrays( GL_TRIANGLES, 0, sphereData.numVertices );
-    //glUniform1i( uEnableTex, 0 );
+}
+void drawPyramid(void)
+{
+    glUniformMatrix4fv( uModelView, 1, GL_TRUE, model_view );
+    glBindVertexArray( pyrData.vao );
+    glDrawArrays( GL_TRIANGLES, 0, pyrData.numVertices );
 }
 
 
@@ -1152,10 +1145,10 @@ void myKey(unsigned char key, int x, int y)
         case 's':
             FrSaver.DumpPPM(Width,Height) ;
             break;
-        //case 'r':
-        //    resetArcball() ;
-        //    glutPostRedisplay() ;
-        //    break ;
+        case 'r':
+            resetArcball() ;
+            glutPostRedisplay() ;
+            break ;
         case 'a': // togle animation
             Animate = 1 - Animate ;
             // reset the timer to point to the current time		
@@ -1183,40 +1176,13 @@ void myKey(unsigned char key, int x, int y)
         case '?':
             instructions();
             break;
-        case 'f':
-            //veloc = -20;
-            objVelocMap[firstPenguinIndex] = -20;
-            break;
-        //case 'r':
-        //    myPeng->move(0, 0,  0.5);
-        //    myPeng->walk();
-        //    myPeng->anim(Penguin::PENGUIN_FLAPPING);
-        //    setCamera();
-        //    break;
-        //case 'f':
-        //    myPeng->move(0, 0, -.5);
-        //    myPeng->walk();
-        //    myPeng->anim(Penguin::PENGUIN_FLAPPING);
-        //    setCamera();
-        //    break;
-        //case 'd':
-        //    myPeng->move(.5, 0, 0);
-        //    myPeng->walk();
-        //    myPeng->anim(Penguin::PENGUIN_FLAPPING);
-        //    setCamera();
-        //    break;
-        //case 'g':
-        //    myPeng->move(-.5, 0, 0);
-        //    myPeng->walk();
-        //    myPeng->anim(Penguin::PENGUIN_FLAPPING);
-        //    setCamera();
-        //    break;
-        
     }
     glutPostRedisplay() ;
 
 }
 
+void doNothing() {
+}
 /*********************************************************
     PROC: myinit()
     DOES: performs most of the OpenGL intialization
@@ -1235,12 +1201,15 @@ void myinit(void)
     generateSphere(program, &sphereData);
     generateCone(program, &coneData);
     generateCylinder(program, &cylData);
+    generatePyramid(program, &pyrData);
+    
 
     uModelView  = glGetUniformLocation( program, "ModelView"  );
     uProjection = glGetUniformLocation( program, "Projection" );
     uView       = glGetUniformLocation( program, "View"       );
 
-    glClearColor( 0.1, 0.1, 0.2, 1.0 ); // dark blue background
+    //glClearColor( 0.1, 0.1, 0.2, 1.0 ); // dark blue background
+    glClearColor(1, 1, 1, 1);
 
     uAmbient   = glGetUniformLocation( program, "AmbientProduct"  );
     uDiffuse   = glGetUniformLocation( program, "DiffuseProduct"  );
@@ -1264,52 +1233,38 @@ void myinit(void)
     Ball_Init(Arcball);
     Ball_Place(Arcball,qOne,0.75);
 
-    drawableObject *ground = new Ground();
-    int groundIndex = manager.addObject(ground);
+    //srand(time(NULL));
+
+    //drawableObject *ground = new Ground();
+    //int groundIndex = manager.addObject(ground);
+    //drawableObject *pyr = new Pyramid();
+    //int pyrIndex = manager.addObject(pyr);
+    drawableObject *whale = new Whale();
+    int whaleIndex = manager.addObject(whale);
+
+    manager.addCameraMovement(new CameraObject(do360), 7);
     //drawableObject *seal = new LeopardSeal();
     //int sealIndex = manager.addObject(seal);
-    //drawableObject *penguin = new Penguin();
-    //penguin->move(0, 10, 0);
-    //int penguinIndex = manager.addObject(penguin, doGravity);
-    //firstPenguinIndex = penguinIndex;
-    //manager.addSceneToObject(penguinIndex, stopObject, 7);
-    //manager.addSceneToObject(penguinIndex, doPenguin, 5);
-    //manager.addSceneToObject(penguinIndex, stopObject, 2);
-    for (int i = 0; i < 5; i++) {
-        drawableObject *penguin = new Penguin();
-        penguin->move(i*20, 10, 0);
-        int penguinIndex = manager.addObject(penguin,doGravity);
-        if (i == 0) {
-                firstPenguinIndex = penguinIndex;
-                myPeng = dynamic_cast<Penguin*>(manager.getObject(firstPenguinIndex));
-        }
-        manager.addSceneToObject(penguinIndex, stopObject, 7);
-        manager.addSceneToObject(penguinIndex, doPenguin, 5);
-        manager.addSceneToObject(penguinIndex, stopObject, 2);
-    }
-    for (int i = -1; i > -5; i--) {
-            drawableObject *penguin = new Penguin();
-            penguin->move(i*20, 10, 0);
-            int penguinIndex = manager.addObject(penguin,doGravity);
-            manager.addSceneToObject(penguinIndex, stopObject, 7);
-            manager.addSceneToObject(penguinIndex, doPenguin, 5);
-            manager.addSceneToObject(penguinIndex, stopObject, 2);
-    }
-    eye.y = 20;
-    manager.addCameraMovement(new CameraObject(do360), 7);
-    CameraObject *cam1 = new CameraObject(panRight);
-    cam1->addCamera(zoomOut);
-    manager.addCameraMovement(cam1, 3);
+    //
+    //for (int i = 0; i < 5; i++) {
+    //    for (int j = 0; j < 5; j++) {
+    //            drawableObject *penguin = new Penguin();
+    //            penguin->move(i*10, 10, j * 10);
+    //            int penguinIndex = manager.addObject(penguin,doGravity);
+    //            if (i == 2 && j == 2) {
+    //                    firstPenguinIndex = penguinIndex;
+    //                    myPeng = dynamic_cast<Penguin*>(manager.getObject(firstPenguinIndex));
+    //            }
+    //            manager.addSceneToObject(penguinIndex, stopObject, 7);
+    //            manager.addSceneToObject(penguinIndex, doPenguin, 3);
+    //            manager.addSceneToObject(penguinIndex, stopObject, 2);
+    //    }
+    //}
 
-    {
-        manager.addCameraMovement(new CameraObject(zoomIn), .2);
-        manager.addCameraMovement(new CameraObject(zoomOut), 1);
-    }
-    {
-        manager.addCameraMovement(new CameraObject(zoomIn), .2);
-        manager.addCameraMovement(new CameraObject(zoomOut), 1);
-    }
-    manager.addCameraMovement(new CameraObject(lookFromFront), 2);
+    //eye.y = 20;
+    //manager.addCameraMovement(new CameraObject(do360), 7);
+    //manager.addCameraMovement(new CameraObject(doNothing), 3);
+    //manager.addCameraMovement(new CameraObject(lookFromFront), 2);
 }
 
 /*********************************************************
@@ -1379,12 +1334,15 @@ void display(void)
 
     // Draw Something
     frames++; 
-    manager.drawScene();
+    //manager.drawScene();
+    manager.drawObjects();
     if ((TIME - lastTime) >= 1) {
             FPS = frames;
             frames = 0;
             lastTime = TIME;
     }
+
+
 
     glutSwapBuffers();
     if(Recording == 1)
@@ -1405,7 +1363,7 @@ void myReshape(int w, int h)
 
     glViewport(0, 0, w, h);
 
-    mat4 projection = Perspective(50.0f, (float)w/(float)h, .5f, 10000.0f);
+    mat4 projection = Perspective(50.0f, (float)w/(float)h, .5f, 3000.0f);
     glUniformMatrix4fv( uProjection, 1, GL_TRUE, projection );
 }
 
@@ -1482,9 +1440,11 @@ void idleCB(void)
         if( Recording == 0 )
             TIME = TM.GetElapsedTime() ;
         else
+            //TIME += .02;
             TIME += 0.033 ; // save at 30 frames per second.
         
-        
+        //manager.updateScene();        
+        manager.updateScene();
         printf("FPS: %d\n", FPS);
         glutPostRedisplay() ; 
     }
@@ -1530,6 +1490,7 @@ int main(int argc, char** argv)
 
 
 void do360() {
+        eye.y = 20;
         eye.x = (40)*sin(TIME);
         eye.x += TIME;
         eye.z = (40)*cos(TIME);
@@ -1559,19 +1520,23 @@ void moveForward(drawableObject *obj) {
 void doAnimate(drawableObject *obj) {
         obj->anim(1);
 }
-
 void doPenguin(drawableObject *obj) {
         Penguin *peng = dynamic_cast<Penguin*>(obj);
         peng->anim(Penguin::PENGUIN_TALKING);
         peng->anim(Penguin::PENGUIN_FLAPPING);
         peng->anim(Penguin::PENGUIN_LAZYEYES); 
-        peng->move(0, 0, .1);
-
-        peng->rotate(0, 0, 20);
-        peng->anim(Penguin::PENGUIN_SLIDING);
+        peng->move(0, 0, 5);
+        //peng->rotate(0, 0, 20);
+        //peng->anim(Penguin::PENGUIN_SLIDING);
+        
         if (peng->getTime(Penguin::PENGUIN_TALKING) > (double)4) {
                 peng->stopAnim(Penguin::PENGUIN_TALKING);
         }        
+        if (peng->getZ() >= 500) {
+                peng->anim(Penguin::PENGUIN_SLIDING);
+                peng->rotate(0, 0, 20);
+                //objVelocMap[peng->getIndex()] = -20;
+        }
         peng->walk();
         if (peng->getIndex() == firstPenguinIndex) {
                 lookFromSide();
@@ -1582,7 +1547,11 @@ void doGravity(drawableObject *obj) {
                 objVelocMap[obj->getIndex()] = 0.0;
         double acceleration = 9.8;
         double yValue = (obj->getY() - ((objVelocMap[obj->getIndex()]*.2) + (.5*acceleration*.2*.2)));
-        if (yValue < 3) yValue = 3;
+        if (obj->getZ() < 500) {
+              if (yValue < 3) yValue = 3;
+        } else {
+                if (yValue < -1) yValue = -1;
+        }
         obj->setY(yValue);
         objVelocMap[obj->getIndex()] += acceleration*.2;
 }
@@ -1592,15 +1561,19 @@ void stopObject(drawableObject *obj) {
 }
 void lookFromFront() {
         eye.x = myPeng->getX();
-        eye.y = myPeng->getY();
+        eye.y = myPeng->getY()+2;
         eye.z = myPeng->getZ() + 40;
         ref.x = myPeng->getX();
         ref.y = myPeng->getY();
         ref.z = myPeng->getZ();
 }
 void lookFromSide() {
-        eye.x = myPeng->getX() + 40;
-        eye.y = myPeng->getY();
+        eye.x = myPeng->getX() + 80;
+        if (myPeng->getZ() >= 500) {
+                eye.y = myPeng->getY() + 2;
+        } else {
+                eye.y = myPeng->getY();
+        }
         eye.z = myPeng->getZ();
         ref.x = myPeng->getX();
         ref.y = myPeng->getY();
