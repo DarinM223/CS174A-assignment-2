@@ -152,7 +152,6 @@ class drawableObject {
 
                 double x, y, z;
                 double Rx, Ry, Rz;
-                double RrndX, RrndY, RrndZ;
 
                 //index assigned from a SceneManager
                 int index;
@@ -186,9 +185,15 @@ class drawableObject {
                 double getX() {return x;}
                 double getY() {return y;}
                 double getZ() {return z;}
+                double getXAngle() {return Rx;}
+                double getYAngle() {return Ry;}
+                double getZAngle() {return Rz;}
                 void setX(double x) { this->x = x; }
                 void setY(double y) { this->y = y; }
                 void setZ(double z) { this->z = z; }
+                void setXAngle(double x) { this->Rx = x; }
+                void setYAngle(double y) { this->Ry = y; }
+                void setZAngle(double z) { this->Rz = z; }
                 int getIndex() {return index;}
                 virtual void updateScene() {
                                 for (map<int, double>::iterator iter = animTimeMap.begin(); iter != animTimeMap.end(); iter++) {
@@ -202,11 +207,6 @@ class drawableObject {
                  */
                 virtual void drawObject() {
                                 mvstack.push(model_view);
-
-                                //do rotations around an arbitrary origin
-                                model_view *= RotateX(this->RrndX);
-                                model_view *= RotateY(this->RrndY);
-                                model_view *= RotateZ(this->RrndZ);
 
                                 //do translations
                                 model_view *= Translate(this->x, this->y, this->z);
@@ -256,8 +256,6 @@ class drawableObject {
                         for (map<int,double>::iterator iter = animTimeMap.begin(); iter != animTimeMap.end(); iter++) {
                                 iter->second = 0;
                         }
-                        //reset rotations
-                        resetRotation();
                 }
                 virtual void resetAnim(int animIndex) {
                         //set internal time for specific animation to 0
@@ -275,11 +273,6 @@ class drawableObject {
                         Ry += angleY;
                         Rz += angleZ;
                 }
-                void rotateAroundObject(int angleX, int angleY, int angleZ) {
-                        RrndX += angleX;
-                        RrndY += angleY;
-                        RrndZ += angleZ;
-                }
                 drawableObject() : x(0), y(0), z(0) {
                         myTime = 0;
                         isAnimated = false;
@@ -295,25 +288,15 @@ void drawSphere();
 void drawPyramid();
 void drawCube();
 void drawCone();
-class Pyramid : public drawableObject {
-        public:
-                virtual void draw() {
-                        mvstack.push(model_view);
-                                set_colour(1, 0, 0);
-                                drawPyramid();
-                        model_view = mvstack.pop();
-                }
-                Pyramid() : drawableObject() {
-                }
-};
 
 class Ground : public drawableObject {
         private:
                 void drawGround() {
                         mvstack.push(model_view);
-                        set_colour(1, 1, 1);
+                        set_colour(6, 6, 6);
                         //model_view *= Translate(0,0,0);
-                        model_view *= Scale(1000, 1, 1000);
+                        model_view *= Translate(0, 0, -300);
+                        model_view *= Scale(2000, 1, 2000);
                         drawCube();
                         model_view = mvstack.pop();
                         mvstack.push(model_view);
@@ -366,9 +349,33 @@ class Fish : public drawableObject {
                 }
                 Fish() : drawableObject() { }
 };
+class Heart : public drawableObject {
+	private:
+                void drawHeart() {
+                        set_colour(1, 0, 0);
+                        mvstack.push(model_view);
+                                model_view *= Translate(-.2, 0, 0);
+                                model_view *= RotateZ(30);
+                                model_view *= Scale(.5, .8, .5);
+                                drawSphere();
+                        model_view = mvstack.pop();
+                        mvstack.push(model_view);
+                                model_view *= Translate(.2, 0, 0);
+                                model_view *= RotateZ(-30);
+                                model_view *= Scale(.5, .8, .5);
+                                drawSphere();
+                        model_view = mvstack.pop();
+                }
+	public:
+		virtual void draw() {
+			drawHeart();
+		}
+		Heart() : drawableObject() { }
+};
 class Bird : public drawableObject {
         private:
                 void drawBird() {
+                        set_colour(1,1,1);
                         //draw body
                         mvstack.push(model_view);
                                 model_view *= Scale(.5, .5, 1);
@@ -377,11 +384,13 @@ class Bird : public drawableObject {
                         //draw beak and eyes
                         mvstack.push(model_view);
                                 model_view *= Translate(0, 0, 1);
+                                set_colour(1, .5, 0);
                                 mvstack.push(model_view);
                                         model_view *= Scale(.3, .3, .5);
                                         model_view *= RotateX(180);
                                         drawCone();
                                 model_view = mvstack.pop();
+                                set_colour(0, 0, 0);
                                 mvstack.push(model_view);
                                         model_view *= Translate(.35, .1, -.3);
                                         model_view *= Scale(.05, .05, .05);
@@ -394,6 +403,7 @@ class Bird : public drawableObject {
                                 model_view = mvstack.pop();
                         model_view = mvstack.pop();
                         //draw wings
+                        set_colour(.9, .9, .9);
                         mvstack.push(model_view);
                                 mvstack.push(model_view);
                                        model_view *= Translate(.5, .1, .1); 
@@ -419,6 +429,7 @@ class Bird : public drawableObject {
                         model_view = mvstack.pop();
                 
                         //draw legs
+                        set_colour(1, .5, 0);
                         mvstack.push(model_view);
                                 mvstack.push(model_view);
                                         model_view *= Translate(.2, -.45, 0);
@@ -446,15 +457,21 @@ class Bird : public drawableObject {
 };
 class Whale : public drawableObject {
 	private:
+                TgaImage *skinImage;
+                GLuint *skinTex;
+                
 		void drawWhale() {
                         mvstack.push(model_view);
                                 model_view *= Scale(2, 2, 2);
                                 //draws body of whale
                                 mvstack.push(model_view);
+                                        set_colour(1, 1, 1);
                                         model_view *= Scale(4, 4, 8);
-                                        drawSphere();
+                                        //drawSphere();
+                                        drawWithTexture(drawSphere, *texture_stuff[WHALE_SKIN]);
                                 model_view = mvstack.pop();
                                 //draws first part of tail of whale
+                                set_colour(0.3, 0.3, 0.3);
                                 mvstack.push(model_view);
                                         model_view *= Translate(0, 0, -7);
                                         model_view *= Scale(3.2, 3.2, 4);
@@ -469,6 +486,7 @@ class Whale : public drawableObject {
                                 model_view = mvstack.pop();
 
                                 //draws top fin of whale
+                                set_colour(0.3, 0.3, 0.3);
                                 mvstack.push(model_view);
                                         model_view *= Translate(0, 4.5, 0);
                                         model_view *= RotateX(90);
@@ -477,12 +495,13 @@ class Whale : public drawableObject {
                                         drawPyramid();
                                 model_view = mvstack.pop();
 
+                                set_colour(0.3, 0.3, 0.3);
                                 mvstack.push(model_view);
                                         //draws side fins of whale
                                         mvstack.push(model_view);
-                                                model_view *= Translate(3, -2, 2);
+                                                model_view *= Translate(4, 0, 0);
                                                 model_view *= RotateZ(-30);
-                                                model_view *= RotateY(-10);
+                                                model_view *= RotateY(-5);
                                                 model_view *= RotateZ(10 * sin(TIME));
                                                 model_view *= Translate(2, 0, 0);
                                                 model_view *= Scale(4, .5, 4);
@@ -490,9 +509,9 @@ class Whale : public drawableObject {
                                         model_view = mvstack.pop();
 
                                         mvstack.push(model_view);
-                                                model_view *= Translate(-3, -2, 2);
+                                                model_view *= Translate(-4, 0, 0);
                                                 model_view *= RotateZ(30);
-                                                model_view *= RotateY(10);
+                                                model_view *= RotateY(5);
                                                 model_view *= RotateZ(-10 * sin(TIME));
                                                 model_view *= Translate(-2, 0, 0);
                                                 model_view *= Scale(4, .5, 4);
@@ -503,24 +522,42 @@ class Whale : public drawableObject {
                                 //the eyes of the whale
                                 mvstack.push(model_view);
                                         mvstack.push(model_view);
-                                                model_view *= Translate(3.5, 0, 4);
+                                                model_view *= Translate(3, -.4, 5);
                                                 model_view *= Scale(.2, .2, .2);
                                                 drawSphere();
                                         model_view = mvstack.pop();
 
                                         mvstack.push(model_view);
-                                                model_view *= Translate(-3.5, 0, 4);
+                                                model_view *= Translate(-3, -.4, 5);
                                                 model_view *= Scale(.2, .2, .2);
                                                 drawSphere();
                                         model_view = mvstack.pop();
                                 model_view = mvstack.pop();
                         model_view = mvstack.pop();
                 }
+                virtual void genTextures() {
+                        skinImage = new TgaImage();
+                        skinTex = new GLuint;
+
+                        if (!skinImage->loadTGA("whaleskin.tga")) {
+                                printf("Error loading image file\n");
+                                exit(1);
+                        }
+
+                        images.push_back(skinImage);
+                        texture_stuff.push_back(skinTex);
+                        
+                        drawableObject::genTextures();
+                }
+                enum WhaleTextures {
+                        WHALE_SKIN
+                };
         public:
+
                 virtual void draw() {
                         drawWhale();
                 }
-                Whale() : drawableObject() { }
+                Whale() : drawableObject() { genTextures(); }
 };
 class Penguin : public drawableObject {
 	private:
@@ -536,6 +573,7 @@ class Penguin : public drawableObject {
                 int legLeftVel;
                 bool rightLeg;
                 const double walkTime ;
+                drawableObject *fish;
 
                 //texture variables
                 TgaImage *furOne, *furTwo;
@@ -582,6 +620,10 @@ class Penguin : public drawableObject {
                         } else {
                                 beakRot = 0;
                                 beakVel = 0;
+                        }
+                        if (isCurrAnimation(this->PENGUIN_WITHFISH)) {
+                                fish = new Fish();
+                                fish->move(this->getX(), this->getY(), this->getZ() + .2);
                         }
                         mvstack.push(model_view);
                                 set_colour(1, .5, 0);
@@ -680,7 +722,7 @@ class Penguin : public drawableObject {
                                 model_view *= Translate(-.7, 0, 0);
                                 //right leg
                                 mvstack.push(model_view);
-                                                model_view *= RotateX(-abs(legRightRot * sin(legRightVel * getTime(this->PENGUIN_RIGHTLEG))));
+                                        model_view *= RotateX(-abs(legRightRot * sin(legRightVel * getTime(this->PENGUIN_RIGHTLEG))));
                                         model_view *= Translate(0, 0, 1);
                                         model_view *= Scale(.5, .1, 1);
                                         drawSphere();
@@ -688,7 +730,7 @@ class Penguin : public drawableObject {
                                 model_view *= Translate(1.4, 0, 0);
                                 //left leg
                                 mvstack.push(model_view);
-                                                model_view *= RotateX(-abs(legLeftRot * sin(legLeftVel * getTime(this->PENGUIN_LEFTLEG))));
+                                        model_view *= RotateX(-abs(legLeftRot * sin(legLeftVel * getTime(this->PENGUIN_LEFTLEG))));
                                         model_view *= Translate(0, 0, 1);
                                         model_view *= Scale(.5, .1, 1);
                                         drawSphere();
@@ -741,7 +783,8 @@ class Penguin : public drawableObject {
                         PENGUIN_LAZYEYES,
                         PENGUIN_RIGHTLEG,
                         PENGUIN_LEFTLEG,
-                        PENGUIN_SLIDING
+                        PENGUIN_SLIDING,
+                        PENGUIN_WITHFISH
                 };
                 void walk() {
                         //if the penguin is in the middle of walking
@@ -777,70 +820,26 @@ class Penguin : public drawableObject {
                                 drawableObject::anim(animIndex);
                         }
                 }
-                Penguin() : walkTime(3) {
+                Penguin() : walkTime(1) {
                         beakRot = 10;
                         beakVel = 2;
                         flapAngle = 0; 
                         typeOfFace = PENGUIN_LAZYEYES;
                         flapVel = 0;    
                         legLeftRot = 0;     
-                        legLeftVel = 1;     
+                        legLeftVel = 3;     
                         legRightRot = 0;
-                        legRightVel = 1;
+                        legRightVel = 3;
                         rightLeg = false;
+                        fish = NULL;
                         genTextures();
                 }
-};
-class LeopardSeal : public drawableObject {
-        private:
-                void drawSealHead() {
-                        mvstack.push(model_view);
-                                mvstack.push(model_view);
-                                      //model_view *= Translate(0, 0.5, 0);
-                                      model_view *= Scale(3, 2.5, 8);
-                                      drawSphere(); 
-                                model_view = mvstack.pop();        
-                                //mvstack.push(model_view);
-                                //      model_view *= Translate(0, 0, 2.5);
-                                //      model_view *= Scale(3, 3, 5);
-                                //      drawSphere();
-                                //model_view = mvstack.pop();
-                                //mvstack.push(model_view);
-                                //      model_view *= Translate(0, -.4, 3.5);
-                                //      model_view *= Scale(3, 2.5, 2.5);
-                                //      drawSphere();
-                                //model_view = mvstack.pop();
-                        model_view = mvstack.pop();
-                }
-                void drawSealNeck() {
-                        mvstack.push(model_view);
-                        model_view = mvstack.pop();
-                }
-                void drawSealBody() {
-                        mvstack.push(model_view);
-                        model_view = mvstack.pop();
-                }
-                void drawSeal() {
-                        mvstack.push(model_view);
-                                drawSealHead();
-                                drawSealNeck();
-                                drawSealBody();
-                        model_view = mvstack.pop();
-                }
-        public:
-                enum SealActions {
-                        SEAL_TALKING,
-                        SEAL_BITING,
-                        SEAL_HUMPING,
-                        SEAL_SWIMMING
-                };
-                virtual void draw() {
-                                drawSeal();
-                }
-                virtual void anim(int animIndex) {
+                ~Penguin() {
+                        if (fish != NULL) {
+                                delete fish;
+                        }
                 }
 };
-
 
 /*
  * Represents a camera object which holds multiple camera movements. 
@@ -1039,19 +1038,27 @@ void drawWithTexture(void (*f)(void), GLuint tex) {
 void do360();
 void panLeft();
 void panRight();
-void lookFromSide();
-void lookFromFront();
+void lookFromSidePenguin(drawableObject *peng);
+void lookFromSideWhale();
+void lookFromFrontPenguin();
+void lookFromFrontWhale();
+void lookFromBackPenguin();
 void zoomIn();
 void zoomOut();
 void doAnimate(drawableObject *obj);
 void moveForward(drawableObject *obj);
 void doPenguin(drawableObject *obj);
+void doPenguinBackwards(drawableObject *obj);
 void stopObject(drawableObject *obj);
 void doGravity(drawableObject *obj);
+void doWhale(drawableObject *obj);
 
 Penguin *myPeng;
+Whale *myWhale;
 SceneManager manager;
 int firstPenguinIndex;
+vector<vec3*> penguinPositions;
+vector<vec3*> fishPositions;
 /////////////////////////////////////////////////////
 //    PROC: drawCylinder()
 //    DOES: this function 
@@ -1135,6 +1142,7 @@ void resetArcball()
 // 
 //////////////////////////////////////////////////////
 map<int, double> objVelocMap;
+map<int, bool> objWaterMap;
 void myKey(unsigned char key, int x, int y)
 {
     float time ;
@@ -1208,8 +1216,7 @@ void myinit(void)
     uProjection = glGetUniformLocation( program, "Projection" );
     uView       = glGetUniformLocation( program, "View"       );
 
-    //glClearColor( 0.1, 0.1, 0.2, 1.0 ); // dark blue background
-    glClearColor(1, 1, 1, 1);
+    glClearColor( 0.5, 0.5, 1.0, 1.0 ); // dark blue background
 
     uAmbient   = glGetUniformLocation( program, "AmbientProduct"  );
     uDiffuse   = glGetUniformLocation( program, "DiffuseProduct"  );
@@ -1233,38 +1240,96 @@ void myinit(void)
     Ball_Init(Arcball);
     Ball_Place(Arcball,qOne,0.75);
 
-    //srand(time(NULL));
-
-    //drawableObject *ground = new Ground();
-    //int groundIndex = manager.addObject(ground);
-    //drawableObject *pyr = new Pyramid();
-    //int pyrIndex = manager.addObject(pyr);
-    drawableObject *whale = new Whale();
-    int whaleIndex = manager.addObject(whale);
 
     manager.addCameraMovement(new CameraObject(do360), 7);
-    //drawableObject *seal = new LeopardSeal();
-    //int sealIndex = manager.addObject(seal);
-    //
-    //for (int i = 0; i < 5; i++) {
-    //    for (int j = 0; j < 5; j++) {
-    //            drawableObject *penguin = new Penguin();
-    //            penguin->move(i*10, 10, j * 10);
-    //            int penguinIndex = manager.addObject(penguin,doGravity);
-    //            if (i == 2 && j == 2) {
-    //                    firstPenguinIndex = penguinIndex;
-    //                    myPeng = dynamic_cast<Penguin*>(manager.getObject(firstPenguinIndex));
-    //            }
-    //            manager.addSceneToObject(penguinIndex, stopObject, 7);
-    //            manager.addSceneToObject(penguinIndex, doPenguin, 3);
-    //            manager.addSceneToObject(penguinIndex, stopObject, 2);
-    //    }
-    //}
 
-    //eye.y = 20;
-    //manager.addCameraMovement(new CameraObject(do360), 7);
-    //manager.addCameraMovement(new CameraObject(doNothing), 3);
-    //manager.addCameraMovement(new CameraObject(lookFromFront), 2);
+    drawableObject *ground = new Ground();
+    int groundIndex = manager.addObject(ground);
+
+    drawableObject *whale = new Whale();
+    whale->rotate(0, 180, 0);
+    whale->move(0, -10, 750);
+    int whaleIndex = manager.addObject(whale,doGravity);
+    manager.addSceneToObject(whaleIndex, stopObject, 32);
+    manager.addSceneToObject(whaleIndex, doWhale, 7);
+    myWhale = dynamic_cast<Whale*>(manager.getObject(whaleIndex));
+
+    double origin = 400;
+    drawableObject *mainPeng = new Penguin();
+    mainPeng->move(0, 3, origin);
+    int mainPengIndex = manager.addObject(mainPeng, doGravity);
+
+    //add main penguin
+    eye.x = mainPeng->getX();
+    eye.y = mainPeng->getY()+3;
+    eye.z = mainPeng->getZ()+40;
+    firstPenguinIndex = mainPengIndex;
+    myPeng = dynamic_cast<Penguin*>(manager.getObject(firstPenguinIndex));
+    manager.addSceneToObject(mainPengIndex, stopObject, 7);
+    manager.addSceneToObject(mainPengIndex, doPenguin, 20);
+    manager.addSceneToObject(mainPengIndex, doPenguinBackwards, 20);
+    manager.addSceneToObject(mainPengIndex, stopObject, 2);
+
+    //add spectating penguins
+    penguinPositions.push_back(new vec3(10, 3, origin+8));
+    penguinPositions.push_back(new vec3(15, 3, origin-5));
+    penguinPositions.push_back(new vec3(30, 3, origin));
+    penguinPositions.push_back(new vec3(-20, 3, origin-10));
+    penguinPositions.push_back(new vec3(-30, 3, origin));
+    penguinPositions.push_back(new vec3(-20, 3, origin-15));
+    penguinPositions.push_back(new vec3(-35, 3, origin-20));
+    penguinPositions.push_back(new vec3(-40, 3, origin-15));
+    penguinPositions.push_back(new vec3(40, 3, origin-15));
+
+    penguinPositions.push_back(new vec3(-100, 3, origin+150));
+    penguinPositions.push_back(new vec3(-80, 3, origin+140));
+    penguinPositions.push_back(new vec3(-90, 3, origin+153));
+    penguinPositions.push_back(new vec3(-100, 3, origin+120));
+    penguinPositions.push_back(new vec3(-80, 3, origin+110));
+    penguinPositions.push_back(new vec3(-90, 3, origin+123));
+
+    penguinPositions.push_back(new vec3(30, 3, origin+130));
+    penguinPositions.push_back(new vec3(25, 3, origin+135));
+    penguinPositions.push_back(new vec3(35, 3, origin+140));
+    
+    //penguinPositions.push_back(new vec3(-50, 5, -50));
+    //penguinPositions.push_back(new vec3(-70, 5, -50));
+    //penguinPositions.push_back(new vec3(-50, 5, -70));
+    //penguinPositions.push_back(new vec3(50, 5, -50));
+    //penguinPositions.push_back(new vec3(100, 5, -100));
+    //penguinPositions.push_back(new vec3(80, 5, -120));
+    //penguinPositions.push_back(new vec3(-50, 5, -120));
+    //
+    //penguinPositions.push_back(new vec3(100, 5, 100));
+    //penguinPositions.push_back(new vec3(80, 5, 80));
+    //penguinPositions.push_back(new vec3(80, 5, 120));
+
+    //penguinPositions.push_back(new vec3(-20, 5, 150));
+    //penguinPositions.push_back(new vec3(-120, 5, 120));
+    //penguinPositions.push_back(new vec3(-150, 5, 200));
+    //penguinPositions.push_back(new vec3(120, 5, 180));
+    for (size_t i = 0; i < penguinPositions.size(); i++) {
+            drawableObject *newPeng = new Penguin();
+            newPeng->move(penguinPositions[i]->x, penguinPositions[i]->y, penguinPositions[i]->z);
+            int newPengIndex = manager.addObject(newPeng, doGravity);
+            manager.addSceneToObject(newPengIndex, stopObject, 15);
+    }
+    //remove spectating penguin positions
+    for (size_t i = 0; i < penguinPositions.size(); i++) {
+            delete penguinPositions[i];
+    }
+
+    //add spectating fish
+    for (size_t i = 0; i < fishPositions.size(); i++) {
+            drawableObject *newFish = new Fish();
+            newFish->move(fishPositions[i]->x, fishPositions[i]->y, fishPositions[i]->z);
+            int newFishIndex = manager.addObject(newFish);
+            manager.addSceneToObject(newFishIndex, stopObject, 12);
+    }
+    //remove spectating fish positions
+    for (size_t i = 0; i < fishPositions.size(); i++) {
+            delete fishPositions[i];
+    }
 }
 
 /*********************************************************
@@ -1303,6 +1368,7 @@ void set_colour(float r, float g, float b)
 double lastTime = 0;
 int frames = 0;
 int FPS = 0;
+double LASTTIME = 0;
 void display(void)
 {
     // Clear the screen with the background colour (set in myinit)
@@ -1334,6 +1400,8 @@ void display(void)
 
     // Draw Something
     frames++; 
+
+    LASTTIME = TIME;
     //manager.drawScene();
     manager.drawObjects();
     if ((TIME - lastTime) >= 1) {
@@ -1430,7 +1498,6 @@ void myMotionCB(int x, int y)
     }
 }
 
-
 void idleCB(void)
 {
     if( Animate == 1 )
@@ -1440,9 +1507,8 @@ void idleCB(void)
         if( Recording == 0 )
             TIME = TM.GetElapsedTime() ;
         else
-            //TIME += .02;
             TIME += 0.033 ; // save at 30 frames per second.
-        
+
         //manager.updateScene();        
         manager.updateScene();
         printf("FPS: %d\n", FPS);
@@ -1490,10 +1556,12 @@ int main(int argc, char** argv)
 
 
 void do360() {
-        eye.y = 20;
         eye.x = (40)*sin(TIME);
         eye.x += TIME;
-        eye.z = (40)*cos(TIME);
+        eye.z = (40)*cos(TIME)+myPeng->getZ();
+        ref.x = myPeng->getX();
+        ref.y = myPeng->getY();
+        ref.z = myPeng->getZ();
         if (TIME < 1.67)
                 eye.z -= TIME/2;
         else {
@@ -1520,38 +1588,74 @@ void moveForward(drawableObject *obj) {
 void doAnimate(drawableObject *obj) {
         obj->anim(1);
 }
+const double pengVelocity = 20;
 void doPenguin(drawableObject *obj) {
         Penguin *peng = dynamic_cast<Penguin*>(obj);
         peng->anim(Penguin::PENGUIN_TALKING);
         peng->anim(Penguin::PENGUIN_FLAPPING);
         peng->anim(Penguin::PENGUIN_LAZYEYES); 
-        peng->move(0, 0, 5);
-        //peng->rotate(0, 0, 20);
-        //peng->anim(Penguin::PENGUIN_SLIDING);
+        //peng->move(0, 0, TIME);
+        double dt = TIME - LASTTIME;
+        peng->move(0, 0, pengVelocity * dt);
         
-        if (peng->getTime(Penguin::PENGUIN_TALKING) > (double)4) {
-                peng->stopAnim(Penguin::PENGUIN_TALKING);
-        }        
-        if (peng->getZ() >= 500) {
+        //if (peng->getTime(Penguin::PENGUIN_TALKING) > (double)4) {
+        //        peng->stopAnim(Penguin::PENGUIN_TALKING);
+        //}        
+        if (peng->getZ() >= 900) {
                 peng->anim(Penguin::PENGUIN_SLIDING);
-                peng->rotate(0, 0, 20);
-                //objVelocMap[peng->getIndex()] = -20;
         }
         peng->walk();
         if (peng->getIndex() == firstPenguinIndex) {
-                lookFromSide();
+                //if (peng->getZ() < 700)
+                        lookFromSidePenguin(peng);
         }
+}
+void doPenguinBackwards(drawableObject *obj) {
+        Penguin *peng = dynamic_cast<Penguin*>(obj);
+        peng->anim(Penguin::PENGUIN_TALKING);
+        peng->anim(Penguin::PENGUIN_FLAPPING);
+        peng->anim(Penguin::PENGUIN_LAZYEYES); 
+        peng->setYAngle(180);
+        double dt = TIME - LASTTIME;
+        peng->move(0, 0, -pengVelocity * dt);
+        if (peng->getZ() < 700) {
+                peng->stopAnim(Penguin::PENGUIN_SLIDING);
+        }
+        peng->walk();
+        if (peng->getIndex() == firstPenguinIndex) {
+                //if (peng->getZ() < 700) 
+                        lookFromSidePenguin(peng);
+        }
+}
+void doWhale(drawableObject *obj) {
+        Whale *whale = dynamic_cast<Whale*>(obj);
+        whale->move(0, 0, -1);
+        //lookFromSideWhale();
 }
 void doGravity(drawableObject *obj) {
         if (objVelocMap.find(obj->getIndex()) == objVelocMap.end()) 
                 objVelocMap[obj->getIndex()] = 0.0;
+        if (objWaterMap.find(obj->getIndex()) == objWaterMap.end())
+                objWaterMap[obj->getIndex()] = false;
         double acceleration = 9.8;
+        if (obj->getZ() < 700) { //if the object is going into land 
+              if (objWaterMap[obj->getIndex()] == true) { //if the object was in water before
+                      objVelocMap[obj->getIndex()] = -20; //do a jump (only once)
+                      objWaterMap[obj->getIndex()] = false;
+              }
+        } else { //if the object is in water
+              if (objWaterMap[obj->getIndex()] == false) { //if the object was on land before
+                      objVelocMap[obj->getIndex()] = -20; //do a jump (only once)
+                      objWaterMap[obj->getIndex()] = true;
+              }
+        }
         double yValue = (obj->getY() - ((objVelocMap[obj->getIndex()]*.2) + (.5*acceleration*.2*.2)));
-        if (obj->getZ() < 500) {
+        if (obj->getZ() < 700) {
               if (yValue < 3) yValue = 3;
         } else {
-                if (yValue < -1) yValue = -1;
+              if (yValue < -5) yValue = -5;
         }
+
         obj->setY(yValue);
         objVelocMap[obj->getIndex()] += acceleration*.2;
 }
@@ -1559,7 +1663,7 @@ void stopObject(drawableObject *obj) {
         obj->stopAllAnim();
         obj->resetAllAnim();
 }
-void lookFromFront() {
+void lookFromFrontPenguin() {
         eye.x = myPeng->getX();
         eye.y = myPeng->getY()+2;
         eye.z = myPeng->getZ() + 40;
@@ -1567,16 +1671,45 @@ void lookFromFront() {
         ref.y = myPeng->getY();
         ref.z = myPeng->getZ();
 }
-void lookFromSide() {
-        eye.x = myPeng->getX() + 80;
-        if (myPeng->getZ() >= 500) {
-                eye.y = myPeng->getY() + 2;
-        } else {
-                eye.y = myPeng->getY();
-        }
-        eye.z = myPeng->getZ();
+void lookFromFrontWhale() {
+        eye.x = myWhale->getX();
+        eye.y = myWhale->getY()+2;
+        eye.z = myWhale->getZ() + 40;
+        ref.x = myWhale->getX();
+        ref.y = myWhale->getY();
+        ref.z = myWhale->getZ();
+}
+void lookFromBackPenguin() {
+        eye.x = myPeng->getX();
+        eye.y = myPeng->getY();
+        eye.z = myPeng->getZ()-40;
         ref.x = myPeng->getX();
         ref.y = myPeng->getY();
         ref.z = myPeng->getZ();
+}
+
+void lookFromSideWhale() {
+        eye.x = myWhale->getX() + 80;
+        if (myWhale->getZ() >= 700) {
+                eye.y = myWhale->getY() + 2;
+        } else {
+                eye.y = myWhale->getY();
+        }
+        eye.z = myWhale->getZ();
+        ref.x = myWhale->getX();
+        ref.y = myWhale->getY();
+        ref.z = myWhale->getZ();
+}
+void lookFromSidePenguin(drawableObject *peng) {
+        eye.x = peng->getX() + 40;
+        if (peng->getZ() >= 700) {
+                eye.y = peng->getY() + 2;
+        } else {
+                eye.y = peng->getY();
+        }
+        eye.z = peng->getZ();
+        ref.x = peng->getX();
+        ref.y = peng->getY();
+        ref.z = peng->getZ();
 }
 
