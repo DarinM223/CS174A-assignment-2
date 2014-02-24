@@ -145,6 +145,7 @@ class drawableObject {
         protected:
                 double myTime;
                 bool isAnimated;
+                bool isHidden;
 
                 //ever animation has its own internal time and a boolean whether its currently running
                 map<int, bool> animIndexMap;
@@ -195,6 +196,7 @@ class drawableObject {
                 void setYAngle(double y) { this->Ry = y; }
                 void setZAngle(double z) { this->Rz = z; }
                 int getIndex() {return index;}
+                void setHidden(bool hidden) { isHidden = hidden; }
                 virtual void updateScene() {
                                 for (map<int, double>::iterator iter = animTimeMap.begin(); iter != animTimeMap.end(); iter++) {
                                         if (isCurrAnimation(iter->first))
@@ -206,6 +208,7 @@ class drawableObject {
                  * What is called to draw the object
                  */
                 virtual void drawObject() {
+                        if (isHidden) return;
                                 mvstack.push(model_view);
 
                                 //do translations
@@ -279,6 +282,7 @@ class drawableObject {
                         Rx = 0;
                         Ry = 0;
                         Rz = 0;
+                        isHidden = false;
                 }
                 virtual ~drawableObject() {
                 }
@@ -1022,6 +1026,9 @@ class SceneManager {
                         sceneObjs[index]->setGravity(gravFunc);
                         return index;
                 }
+                void setGravity(int index, sceneCall g) {
+                        sceneObjs[index]->setGravity(g);
+                }
                 void addSceneToObject(int objIndex, sceneCall func, double sceneTimeLength) {
                        sceneObjs[objIndex]->addScene(func, sceneTimeLength); 
                 }
@@ -1050,30 +1057,6 @@ void drawWithTexture(void (*f)(void), GLuint tex) {
 
 void addObjects();
 
-void do360();
-void panLeft();
-void panRight();
-void lookFromSide(drawableObject *peng);
-void lookFromFront();
-void lookFromBack();
-void zoomIn();
-void zoomOut();
-void doAnimate(drawableObject *obj);
-void moveForward(drawableObject *obj);
-void doPenguin(drawableObject *obj);
-void doHeart(drawableObject *obj);
-void doPenguinBackwards(drawableObject *obj);
-void stopObject(drawableObject *obj);
-void doGravity(drawableObject *obj);
-void doWhale(drawableObject *obj);
-
-Penguin *myPeng;
-Whale *myWhale;
-SceneManager manager;
-int firstPenguinIndex;
-int secondPenguinIndex;
-vector<vec3*> penguinPositions;
-vector<vec3*> fishPositions;
 /////////////////////////////////////////////////////
 //    PROC: drawCylinder()
 //    DOES: this function 
@@ -1275,7 +1258,13 @@ void set_colour(float r, float g, float b)
     glUniform4f(uSpecular, specular*r, specular*g, specular*b, 1.0f);
 }
 
-
+Penguin *myPeng;
+Whale *myWhale;
+SceneManager manager;
+int firstPenguinIndex;
+int secondPenguinIndex;
+vector<vec3*> penguinPositions;
+vector<vec3*> fishPositions;
 /*********************************************************
 **********************************************************
 **********************************************************
@@ -1479,6 +1468,22 @@ int main(int argc, char** argv)
     return 0;         // never reached
 }
 
+void do360();
+void panLeft();
+void panRight();
+void lookFromSide(drawableObject *peng);
+void lookFromFront();
+void lookFromBack();
+void zoomIn();
+void zoomOut();
+void doAnimate(drawableObject *obj);
+void moveForward(drawableObject *obj);
+void doPenguin(drawableObject *obj);
+void doHeart(drawableObject *obj);
+void doPenguinBackwards(drawableObject *obj);
+void stopObject(drawableObject *obj);
+void doGravity(drawableObject *obj);
+void doWhale(drawableObject *obj);
 
 
 void do360() {
@@ -1553,14 +1558,26 @@ void doPenguinBackwards(drawableObject *obj) {
                         lookFromSide(peng);
         }
 }
+void doPenguinSpeedBackwards(drawableObject *obj) {
+        Penguin *peng = dynamic_cast<Penguin*>(obj);
+        peng->anim(Penguin::PENGUIN_FLAPPING);
+        peng->anim(Penguin::PENGUIN_ROUNDEYES);
+        peng->anim(Penguin::PENGUIN_WITHFISH);
+        peng->anim(Penguin::PENGUIN_SLIDING);
+        
+}
 void doWhale(drawableObject *obj) {
         Whale *whale = dynamic_cast<Whale*>(obj);
         whale->move(0, 0, -1);
 }
-void doHeart(drawableObject *obj) {
+double moveVelocity = 2;
+void moveUp(drawableObject *obj) {
        double dt = TIME - LASTTIME;
-       const double heartVelocity = 2;
-       obj->move(0, heartVelocity*dt, 0);
+       obj->move(0, moveVelocity*dt, 0);
+}
+void moveUpFaster(drawableObject *obj) {
+        moveVelocity = 6;
+        moveUp(obj);
 }
 void doGravity(drawableObject *obj) {
         if (objVelocMap.find(obj->getIndex()) == objVelocMap.end()) 
@@ -1625,6 +1642,27 @@ void lookFromSide(drawableObject *obj) {
 void beSurprised(drawableObject *obj) {
         obj->anim(Penguin::PENGUIN_ROUNDEYES);
 }
+void disableGravity(drawableObject *obj) {
+        manager.setGravity(obj->getIndex(), NULL);        
+}
+void bobUp(drawableObject *obj) {
+        obj->setZ(800);
+        obj->anim(Penguin::PENGUIN_WITHFISH);
+        eye.x = obj->getX();
+        eye.y = 10;
+        eye.z = obj->getZ()-40;
+        ref.x = obj->getX();
+        ref.y = obj->getY();
+        ref.z = obj->getZ();
+        obj->setYAngle(180);
+        
+        disableGravity(obj);
+        moveUp(obj);
+        //lookFromBack(obj);
+}
+void hideObject(drawableObject *obj) {
+        obj->setHidden(true);
+}
 
 void addObjects() {
     manager.addCameraMovement(new CameraObject(do360), 7);
@@ -1634,9 +1672,11 @@ void addObjects() {
 
     drawableObject *whale = new Whale();
     whale->rotate(0, 180, 0);
-    whale->move(0, -10, 750);
-    int whaleIndex = manager.addObject(whale,doGravity);
-    manager.addSceneToObject(whaleIndex, stopObject, 32);
+    whale->move(0, -15, 850);
+    int whaleIndex = manager.addObject(whale);
+    manager.addSceneToObject(whaleIndex, stopObject, 45);
+    manager.addSceneToObject(whaleIndex, moveUp, 9);
+    manager.addSceneToObject(whaleIndex, stopObject, 6);
     manager.addSceneToObject(whaleIndex, doWhale, 7);
     myWhale = dynamic_cast<Whale*>(manager.getObject(whaleIndex));
 
@@ -1656,9 +1696,32 @@ void addObjects() {
     heart->rotate(0, 90, 0);
     int heartIndex = manager.addObject(heart);
     manager.addSceneToObject(heartIndex, stopObject, 15.5);
-    manager.addSceneToObject(heartIndex, doHeart, 4);
+    manager.addSceneToObject(heartIndex, moveUp, 4);
     manager.addSceneToObject(heartIndex, stopObject, 20);
 
+    drawableObject *heart2 = new Heart();
+    heart2->move(0, -1, 850);
+    int heart2Index = manager.addObject(heart2);
+    manager.addSceneToObject(heart2Index, stopObject, 45+9);
+    manager.addSceneToObject(heart2Index, moveUpFaster, 3);
+    manager.addSceneToObject(heart2Index, stopObject, 3);
+    manager.addSceneToObject(heart2Index, hideObject, 1);
+    
+    drawableObject *heart3 = new Heart();
+    heart3->move(-5, -1, 850);
+    int heart3Index = manager.addObject(heart3);
+    manager.addSceneToObject(heart3Index, stopObject, 45+9);
+    manager.addSceneToObject(heart3Index, moveUpFaster, 3);
+    manager.addSceneToObject(heart3Index, stopObject, 3);
+    manager.addSceneToObject(heart3Index, hideObject, 1);
+
+    drawableObject *heart4 = new Heart();
+    heart4->move(5, -1, 850);
+    int heart4Index = manager.addObject(heart4);
+    manager.addSceneToObject(heart4Index, stopObject, 45+9);
+    manager.addSceneToObject(heart4Index, moveUpFaster, 3);
+    manager.addSceneToObject(heart4Index, stopObject, 3);
+    manager.addSceneToObject(heart4Index, hideObject, 1);
 
     //add main penguin
     drawableObject *mainPeng = new Penguin();
@@ -1673,10 +1736,12 @@ void addObjects() {
     manager.addSceneToObject(mainPengIndex, stopObject, 20);
     manager.addSceneToObject(mainPengIndex, beSurprised, 2);
     manager.addSceneToObject(mainPengIndex, lookFromFront, 5);
-    manager.addSceneToObject(mainPengIndex, doPenguin, 20);
-    manager.addSceneToObject(mainPengIndex, doPenguinBackwards, 20);
-    manager.addSceneToObject(mainPengIndex, stopObject, 2);
-
+    manager.addSceneToObject(mainPengIndex, doPenguin, 16);
+    manager.addSceneToObject(mainPengIndex, bobUp, 2);
+    //manager.addSceneToObject(mainPengIndex, disableGravity, 1);
+    //manager.addSceneToObject(mainPengIndex, moveUp, 2);
+    //manager.addSceneToObject(mainPengIndex, doPenguinBackwards, 20);
+    manager.addSceneToObject(mainPengIndex, stopObject, 12);
 
     //add spectating penguins
     penguinPositions.push_back(new vec3(10, 3, origin+8));
