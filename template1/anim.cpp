@@ -743,7 +743,11 @@ class Penguin : public drawableObject {
                                 //if the penguin is sliding rotate whole penguin 90 degrees 
                                 mvstack.push(model_view);
                                 if (isCurrAnimation(this->PENGUIN_WITHFISH)) {
-                                        model_view *= Translate(0, 3.2, 2);
+                                        if (!isCurrAnimation(this->PENGUIN_SLIDING)) {
+                                                model_view *= Translate(0, 3.2, 2);
+                                        } else {
+                                                model_view *= Translate(0, 0, 5);
+                                        }
                                         model_view *= RotateX(90);
                                         model_view *= RotateY(270);
                                         fish->draw();
@@ -1263,6 +1267,7 @@ Whale *myWhale;
 SceneManager manager;
 int firstPenguinIndex;
 int secondPenguinIndex;
+int thirdPenguinIndex;
 vector<vec3*> penguinPositions;
 vector<vec3*> fishPositions;
 /*********************************************************
@@ -1529,9 +1534,6 @@ void doPenguin(drawableObject *obj) {
         double dt = TIME - LASTTIME;
         peng->move(0, 0, pengVelocity * dt);
         
-        //if (peng->getTime(Penguin::PENGUIN_TALKING) > (double)4) {
-        //        peng->stopAnim(Penguin::PENGUIN_TALKING);
-        //}        
         if (peng->getZ() >= 900) {
                 peng->anim(Penguin::PENGUIN_SLIDING);
         }
@@ -1565,15 +1567,29 @@ void doPenguinSpeedBackwards(drawableObject *obj) {
         peng->anim(Penguin::PENGUIN_WITHFISH);
         peng->anim(Penguin::PENGUIN_SLIDING);
         
+        double dt = TIME - LASTTIME;
+        peng->move(0, 0, -pengVelocity * dt);
+        if (peng->getZ() < 650) 
+                peng->stopAnim(Penguin::PENGUIN_SLIDING);
+        peng->walk();
+        if (peng->getIndex() == firstPenguinIndex) {
+                lookFromSide(peng);
+        }
 }
+const double whaleVelocity = 24.5;
 void doWhale(drawableObject *obj) {
         Whale *whale = dynamic_cast<Whale*>(obj);
-        whale->move(0, 0, -1);
+        double dt = TIME - LASTTIME;
+        whale->move(0, 0, -whaleVelocity*dt);
 }
 double moveVelocity = 2;
 void moveUp(drawableObject *obj) {
        double dt = TIME - LASTTIME;
        obj->move(0, moveVelocity*dt, 0);
+}
+void moveDown(drawableObject *obj) {
+        double dt = TIME - LASTTIME;
+        obj->move(0, -moveVelocity*dt, 0);
 }
 void moveUpFaster(drawableObject *obj) {
         moveVelocity = 6;
@@ -1645,6 +1661,9 @@ void beSurprised(drawableObject *obj) {
 void disableGravity(drawableObject *obj) {
         manager.setGravity(obj->getIndex(), NULL);        
 }
+void enableGravity(drawableObject *obj) {
+        manager.setGravity(obj->getIndex(), doGravity);
+}
 void bobUp(drawableObject *obj) {
         obj->setZ(800);
         obj->anim(Penguin::PENGUIN_WITHFISH);
@@ -1663,13 +1682,28 @@ void bobUp(drawableObject *obj) {
 void hideObject(drawableObject *obj) {
         obj->setHidden(true);
 }
+const double pengXVel = 5;
+void gotoLoveInterest(drawableObject *obj) {
+        drawableObject *loveInterest = manager.getObject(thirdPenguinIndex);
+        double dt = TIME - LASTTIME;
+        if (obj->getX() < loveInterest->getX()) {
+                obj->move(pengXVel*dt, 0, -pengVelocity*dt);
+        } else if (obj->getX() > loveInterest->getX()) {
+                obj->move(-pengXVel*dt, 0, -pengVelocity*dt);
+        } else {
+                obj->move(0, 0, -pengVelocity*dt);
+        }
+        lookFromSide(obj);
+}
 
 void addObjects() {
     manager.addCameraMovement(new CameraObject(do360), 7);
 
+    //add the ground
     drawableObject *ground = new Ground();
     int groundIndex = manager.addObject(ground);
 
+    //add main killer whale
     drawableObject *whale = new Whale();
     whale->rotate(0, 180, 0);
     whale->move(0, -15, 850);
@@ -1677,11 +1711,34 @@ void addObjects() {
     manager.addSceneToObject(whaleIndex, stopObject, 45);
     manager.addSceneToObject(whaleIndex, moveUp, 9);
     manager.addSceneToObject(whaleIndex, stopObject, 6);
+    manager.addSceneToObject(whaleIndex, enableGravity, .1);
     manager.addSceneToObject(whaleIndex, doWhale, 7);
     myWhale = dynamic_cast<Whale*>(manager.getObject(whaleIndex));
 
     double origin = 400;
 
+    //add main penguin
+    drawableObject *mainPeng = new Penguin();
+    mainPeng->move(0, 3, origin);
+    int mainPengIndex = manager.addObject(mainPeng, doGravity);
+
+    eye.x = mainPeng->getX();
+    eye.y = mainPeng->getY()+3;
+    eye.z = mainPeng->getZ()+40;
+    firstPenguinIndex = mainPengIndex;
+    myPeng = dynamic_cast<Penguin*>(manager.getObject(firstPenguinIndex));
+    manager.addSceneToObject(mainPengIndex, stopObject, 20);
+    manager.addSceneToObject(mainPengIndex, beSurprised, 2);
+    manager.addSceneToObject(mainPengIndex, lookFromFront, 5);
+    manager.addSceneToObject(mainPengIndex, doPenguin, 16);
+    manager.addSceneToObject(mainPengIndex, bobUp, 2);
+    manager.addSceneToObject(mainPengIndex, stopObject, 15);
+    manager.addSceneToObject(mainPengIndex, enableGravity, .1);
+    manager.addSceneToObject(mainPengIndex, doPenguinSpeedBackwards, 9);
+    manager.addSceneToObject(mainPengIndex, gotoLoveInterest, 10.1);
+    manager.addSceneToObject(mainPengIndex, stopObject, .5);
+
+    //penguin with the fish
     drawableObject *fishPeng = new Penguin();
     fishPeng->move(-10, 3, 750);
     fishPeng->anim(Penguin::PENGUIN_WITHFISH);
@@ -1691,6 +1748,16 @@ void addObjects() {
     manager.addSceneToObject(fishPengIndex, doPenguinBackwards, 8.5);
     manager.addSceneToObject(fishPengIndex, stopObject, 20);
 
+    //penguin love interest
+    drawableObject *lovePeng = new Penguin();
+    lovePeng->move(10, 3, origin+8);
+    int lovePengIndex = manager.addObject(lovePeng, doGravity);
+    thirdPenguinIndex = lovePengIndex;
+    manager.addSceneToObject(lovePengIndex, stopObject, 84.1);
+    manager.addSceneToObject(lovePengIndex, doPenguinBackwards, 5);
+    manager.addSceneToObject(lovePengIndex, stopObject, .1);
+
+    //all of the hearts
     drawableObject *heart = new Heart();
     heart->move(-10, -1, origin+175);
     heart->rotate(0, 90, 0);
@@ -1723,28 +1790,16 @@ void addObjects() {
     manager.addSceneToObject(heart4Index, stopObject, 3);
     manager.addSceneToObject(heart4Index, hideObject, 1);
 
-    //add main penguin
-    drawableObject *mainPeng = new Penguin();
-    mainPeng->move(0, 3, origin);
-    int mainPengIndex = manager.addObject(mainPeng, doGravity);
-
-    eye.x = mainPeng->getX();
-    eye.y = mainPeng->getY()+3;
-    eye.z = mainPeng->getZ()+40;
-    firstPenguinIndex = mainPengIndex;
-    myPeng = dynamic_cast<Penguin*>(manager.getObject(firstPenguinIndex));
-    manager.addSceneToObject(mainPengIndex, stopObject, 20);
-    manager.addSceneToObject(mainPengIndex, beSurprised, 2);
-    manager.addSceneToObject(mainPengIndex, lookFromFront, 5);
-    manager.addSceneToObject(mainPengIndex, doPenguin, 16);
-    manager.addSceneToObject(mainPengIndex, bobUp, 2);
-    //manager.addSceneToObject(mainPengIndex, disableGravity, 1);
-    //manager.addSceneToObject(mainPengIndex, moveUp, 2);
-    //manager.addSceneToObject(mainPengIndex, doPenguinBackwards, 20);
-    manager.addSceneToObject(mainPengIndex, stopObject, 12);
+    drawableObject *heart5 = new Heart();
+    heart5->move(10, -1, origin+13);
+    heart5->rotate(0, 90, 0);
+    int heart5Index = manager.addObject(heart5);
+    manager.addSceneToObject(heart5Index, stopObject, 81.1);
+    manager.addSceneToObject(heart5Index, moveUp, 2);
+    manager.addSceneToObject(heart5Index, moveDown, 2);
 
     //add spectating penguins
-    penguinPositions.push_back(new vec3(10, 3, origin+8));
+    //penguinPositions.push_back(new vec3(10, 3, origin+8));
     penguinPositions.push_back(new vec3(15, 3, origin-5));
     penguinPositions.push_back(new vec3(30, 3, origin));
     penguinPositions.push_back(new vec3(-20, 3, origin-10));
