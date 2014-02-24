@@ -292,6 +292,45 @@ void drawSphere();
 void drawPyramid();
 void drawCube();
 void drawCone();
+void drawWithTexture(void (*f)(void), GLuint tex);
+class TheEnd : public drawableObject {
+        private:
+                TgaImage *image;
+                GLuint *texture;
+                void drawTheEnd() {
+                        mvstack.push(model_view);
+                                model_view *= Scale(20, 10, 1);
+                                drawWithTexture(drawCube, *texture_stuff[THEENDTEXTURE]);                                
+                        model_view = mvstack.pop();
+                }
+                virtual void genTextures() {
+                        image = new TgaImage();
+                        texture = new GLuint;
+
+                        if (!image->loadTGA("theend.tga")) {
+                                printf("Error loading image file\n");
+                                exit(1);
+                        }
+
+                        images.push_back(image);
+                        texture_stuff.push_back(texture);
+                        drawableObject::genTextures();
+                }
+                enum myTextures {
+                        THEENDTEXTURE
+                };
+        public:
+                virtual void draw() {
+                        drawTheEnd();
+                }
+                TheEnd() : drawableObject() { 
+                        genTextures();
+                }
+                ~TheEnd() {
+                        delete image;
+                        delete texture;
+                }
+};
 
 class Ground : public drawableObject {
         private:
@@ -316,7 +355,6 @@ class Ground : public drawableObject {
                 Ground() : drawableObject() {
                 }
 };
-void drawWithTexture(void (*f)(void), GLuint tex);
 class Fish : public drawableObject {
 	private:
                 void drawFish() {
@@ -331,7 +369,7 @@ class Fish : public drawableObject {
                         mvstack.push(model_view);
                                 model_view *= Translate(0, 0, -1);
                                 model_view *= RotateX(180);
-                                model_view *= Scale(.1, .5, .1);
+                                model_view *= Scale(.2, .5, .2);
                                 drawCone();
                         model_view = mvstack.pop();
                 
@@ -1601,22 +1639,44 @@ void doGravity(drawableObject *obj) {
         if (objWaterMap.find(obj->getIndex()) == objWaterMap.end())
                 objWaterMap[obj->getIndex()] = false;
         double acceleration = 9.8;
-        if (obj->getZ() < 700) { //if the object is going into land 
-              if (objWaterMap[obj->getIndex()] == true) { //if the object was in water before
-                      objVelocMap[obj->getIndex()] = -20; //do a jump (only once)
-                      objWaterMap[obj->getIndex()] = false;
-              }
-        } else { //if the object is in water
-              if (objWaterMap[obj->getIndex()] == false) { //if the object was on land before
-                      objVelocMap[obj->getIndex()] = -20; //do a jump (only once)
-                      objWaterMap[obj->getIndex()] = true;
-              }
-        }
-        double yValue = (obj->getY() - ((objVelocMap[obj->getIndex()]*.2) + (.5*acceleration*.2*.2)));
-        if (obj->getZ() < 700) {
-              if (yValue < 3) yValue = 3;
+        Whale *whale = dynamic_cast<Whale*>(obj);
+        double yValue;
+        if (whale == NULL) {
+                if (obj->getZ() < 700) { //if the object is going into land 
+                      if (objWaterMap[obj->getIndex()] == true) { //if the object was in water before
+                              objVelocMap[obj->getIndex()] = -20; //do a jump (only once)
+                              objWaterMap[obj->getIndex()] = false;
+                      }
+                } else { //if the object is in water
+                      if (objWaterMap[obj->getIndex()] == false) { //if the object was on land before
+                              objVelocMap[obj->getIndex()] = -20; //do a jump (only once)
+                              objWaterMap[obj->getIndex()] = true;
+                      }
+                }
+                yValue = (obj->getY() - ((objVelocMap[obj->getIndex()]*.2) + (.5*acceleration*.2*.2)));
+                if (obj->getZ() < 700) {
+                      if (yValue < 3) yValue = 3;
+                } else {
+                      if (yValue < -5) yValue = -5;
+                }
         } else {
-              if (yValue < -5) yValue = -5;
+                if (obj->getZ() < 720) {
+                      if (objWaterMap[obj->getIndex()] == true) { //if the object was in water before
+                              objVelocMap[obj->getIndex()] = -20; //do a jump (only once)
+                              objWaterMap[obj->getIndex()] = false;
+                      }
+                } else {
+                      if (objWaterMap[obj->getIndex()] == false) { //if the object was on land before
+                              objVelocMap[obj->getIndex()] = -20; //do a jump (only once)
+                              objWaterMap[obj->getIndex()] = true;
+                      }
+                }
+                yValue = (obj->getY() - ((objVelocMap[obj->getIndex()]*.2) + (.5*acceleration*.2*.2)));
+                if (obj->getZ() < 720) {
+                      if (yValue < 3) yValue = 3;
+                } else {
+                      if (yValue < -5) yValue = -5;
+                }
         }
 
         obj->setY(yValue);
@@ -1638,6 +1698,14 @@ void lookFromBack(drawableObject *obj) {
         eye.x = obj->getX();
         eye.y = obj->getY();
         eye.z = obj->getZ()-40;
+        ref.x = obj->getX();
+        ref.y = obj->getY();
+        ref.z = obj->getZ();
+}
+void lookFromBackClose(drawableObject *obj) {
+        eye.x = obj->getX();
+        eye.y = obj->getY();
+        eye.z = obj->getZ()-20;
         ref.x = obj->getX();
         ref.y = obj->getY();
         ref.z = obj->getZ();
@@ -1684,16 +1752,27 @@ void hideObject(drawableObject *obj) {
 }
 const double pengXVel = 5;
 void gotoLoveInterest(drawableObject *obj) {
+        Penguin *peng = dynamic_cast<Penguin*>(obj);
         drawableObject *loveInterest = manager.getObject(thirdPenguinIndex);
         double dt = TIME - LASTTIME;
-        if (obj->getX() < loveInterest->getX()) {
-                obj->move(pengXVel*dt, 0, -pengVelocity*dt);
-        } else if (obj->getX() > loveInterest->getX()) {
-                obj->move(-pengXVel*dt, 0, -pengVelocity*dt);
+        if (peng->getX() < loveInterest->getX()) {
+                peng->move(pengXVel*dt, 0, -pengVelocity*dt);
+        } else if (peng->getX() > loveInterest->getX()) {
+                peng->move(-pengXVel*dt, 0, -pengVelocity*dt);
         } else {
-                obj->move(0, 0, -pengVelocity*dt);
+                peng->move(0, 0, -pengVelocity*dt);
         }
-        lookFromSide(obj);
+        peng->walk();
+        lookFromSide(peng);
+}
+void gotoTheEnd(drawableObject *obj) {
+        obj->setHidden(false);
+        eye.x = obj->getX();
+        eye.y = obj->getY();
+        eye.z = obj->getZ() + 10;
+        ref.x = obj->getX();
+        ref.y = obj->getY();
+        ref.z = obj->getZ();
 }
 
 void addObjects() {
@@ -1732,11 +1811,20 @@ void addObjects() {
     manager.addSceneToObject(mainPengIndex, lookFromFront, 5);
     manager.addSceneToObject(mainPengIndex, doPenguin, 16);
     manager.addSceneToObject(mainPengIndex, bobUp, 2);
-    manager.addSceneToObject(mainPengIndex, stopObject, 15);
+    manager.addSceneToObject(mainPengIndex, stopObject, 14);
+    manager.addSceneToObject(mainPengIndex, beSurprised, 1);
     manager.addSceneToObject(mainPengIndex, enableGravity, .1);
     manager.addSceneToObject(mainPengIndex, doPenguinSpeedBackwards, 9);
     manager.addSceneToObject(mainPengIndex, gotoLoveInterest, 10.1);
-    manager.addSceneToObject(mainPengIndex, stopObject, .5);
+    manager.addSceneToObject(mainPengIndex, stopObject, 7.1);
+    manager.addSceneToObject(mainPengIndex, lookFromBackClose, 5);
+
+    drawableObject *theEnd = new TheEnd();
+    theEnd->setHidden(true);
+    theEnd->move(0, 10, 0);
+    int theEndIndex = manager.addObject(theEnd);
+    manager.addSceneToObject(theEndIndex, stopObject, 91.3);
+    manager.addSceneToObject(theEndIndex, gotoTheEnd, 5);
 
     //penguin with the fish
     drawableObject *fishPeng = new Penguin();
