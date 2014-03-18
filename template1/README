@@ -1,18 +1,30 @@
 Name: Darin Minamoto
 UID: 704-140-102
 
-1) Ubuntu 12.04, vim and make using custom Makefile (I changed some header files meant for Mac to Linux so it will not compile on Mac computers.
-anim.cpp worked in Visual Studio though when I replaced the default anim.cpp with it and kept the other files the same)
-2) In anim.cpp, changed display() function, created multiple functions to draw the ground
-and the various parts of the bee and flower/tree.
+Summary of animation:
+The harsh life of Antarctic creatures
 
-3) 
-   a) 5/5
-   b) 1/1
-   c) 2/2
-   d) 2/2
-   e) 4/4 
-   f) 5/5
-   g) 3/3
-   h) 2/2
-   i) In general it looks qualitatively and visually similar to the example video.
+A penguin sees another penguin give a fish to a penguin of the opposite sex which accepts that penguin as its mate.
+The penguin (who needs a mate) wants to try that out also. It goes into the water and picks up a fish. However, 
+a killer whale chases after it and tries to eat it, but the penguin narrowly escapes. That penguin tries to give the fish
+to another penguin, which rejects it and walks away. The penguin sadly stands there holding the fish.
+
+For hierarchial objects, there are the penguins wings. The polygonal object is the killer whale's fin which is a weirdly shaped pyramid.
+The texture mapped objects are the killer whale, the penguin, and the end screen. Both the killer whale and the penguins textures were
+made by hand, with a paint tool.
+
+I modified some of anim.cpp and some other files to be able to compile on Linux. Because of that, my project might not compile on
+Windows or Mac. I hope there isn't an issue with that.
+
+Self-Grading:
+
+1)  4/4
+2)  4/4
+3)  6/6
+4)  2/2
+5)  2/2
+6)  2/2
+7)  2/2
+8)  4/4
+9)  4/4
+10) 5/5
